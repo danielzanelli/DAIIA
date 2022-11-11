@@ -14,11 +14,15 @@ model Assignment1
 global {
 	int numberOfPeople <- 30;
 	int numberOfStores <- 5;
-	int distanceThreshold <- 10;
+	int distanceThreshold <- 1;
+	
+	bool forget <- false;
 	
 	init {
 		create Person number:numberOfPeople;
 		create Store number:numberOfStores;
+		create Info number:1;
+		
 				
 		// ------------------ START OF THE NEW PART ------------------
 		loop counter from: 1 to: numberOfPeople {
@@ -37,15 +41,16 @@ global {
 species Person skills: [moving] {
 
 	string personName <- "Undefined";
-	int hunger <- 100 update: updateHunger();
-	int thirst <- 100 update: updateThirst();
+	int hunger <- 1000 update: updateHunger();
+	int thirst <- 1000 update: updateThirst();
 	
 	bool infoAvailable <- false;
 	
 	Store target;
+	Info infoTarget;
 	
-	Store foodStores <- [];
-	Store drinkStores <- [];
+	list foodStores <- [];
+	list drinkStores <- [];
 	
 
 
@@ -59,11 +64,11 @@ species Person skills: [moving] {
     		//if(infoAvailable and target = nil){
     		//	target <- 
     		//}
-    		write "Hunger for person " + personName + " in now " + hunger;
+    		write "Hunger for person " + personName + " is now " + hunger;
     		return 0;
     	}
     	else{
-    		write "Hunger for person " + personName + " in now " + (hunger - 1 );
+    		write "Hunger for person " + personName + " is now " + (hunger - 1 );
     		return hunger - 1;
     	}
 	}
@@ -74,11 +79,11 @@ species Person skills: [moving] {
     		//if(infoAvailable and target = nil){
     		//	target <- 
     		//}
-    		write "Thirst for person " + personName + " in now " + thirst;
+    		write "Thirst for person " + personName + " is now " + thirst;
     		return 0;
     	}
     	else{
-    		write "Thirst for person " + personName + " in now " + (thirst - 1 );
+    		write "Thirst for person " + personName + " is now " + (thirst - 1 );
     		return thirst - 1;
     	}
     }
@@ -101,7 +106,28 @@ species Person skills: [moving] {
 		if(target != nil){
 			do goto target: target;
 		} else{
-			do wander;			
+			if((thirst = 0 or hunger = 0) and not infoAvailable){
+				do goto target: Info closest_to self;		
+			}else{
+				do wander;
+			}	
+		}
+	}
+	
+
+	reflex gotoFoodStore when: target = nil and hunger = 0 and infoAvailable{
+		if(length(self.foodStores) > 0){
+			Store chosen <- self.foodStores closest_to self;
+			write "Person " + personName + " going to the food store " + chosen;
+			target <- chosen;		
+		}
+	}
+	
+	reflex gotoDrinkStore when: target = nil and thirst = 0 and infoAvailable{
+		if(length(self.drinkStores) > 0){
+			Store chosen <- self.drinkStores closest_to self;
+			write "Person " + personName + " going to the drink store " + chosen;
+			target <- chosen;			
 		}
 	}
 	
@@ -109,16 +135,53 @@ species Person skills: [moving] {
 		ask Store at_distance distanceThreshold {
 			if(myself.hunger = 0 and self.hasFood){
 				write myself.personName + " has eaten at " + self.storeName ;
-				myself.hunger <- 100;
+				myself.hunger <- 1000;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
+				}
 			}else if(myself.thirst = 0 and self.hasDrink){
 				write myself.personName + " has drank at " + self.storeName ;
-				myself.thirst <- 100;
+				myself.thirst <- 1000;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
+				}
 			}
+		}
+	}
+
+	
+	reflex reportApproachingToInfo when: !empty(Info at_distance distanceThreshold) {
+		ask Info at_distance distanceThreshold {
+			
+			myself.foodStores <- copy_between(self.foodStores, 0, self.limit);
+			myself.drinkStores <- copy_between(self.drinkStores, 0, self.limit);
+			myself.infoAvailable <- true;
+			
 		}
 	}
 
 }
 
+
+species Info{
+	
+	int limit <- 1;
+	list foodStores <- Store at_distance 100000 where each.hasFood;
+	list drinkStores <- Store at_distance 100000 where each.hasDrink;
+	
+	
+	aspect base {	
+		draw square(5) color: rgb("black");
+	}
+	
+	
+}
 
 species Store {
 
@@ -154,7 +217,7 @@ species Store {
 		} else if (hasFood) {
 			agentColor <- rgb("skyblue");
 		} else if (hasDrink) {
-			agentColor <- rgb("lightskyblue");
+			agentColor <- rgb("brown");
 		}
 		
 		draw square(2) color: agentColor;
@@ -162,9 +225,11 @@ species Store {
 }
 
 
+
 experiment myAssignment type:gui {
 	output {
 		display myDisplay {
+			species Info aspect:base;
 			species Person aspect:base;
 			species Store aspect:base;
 		}
