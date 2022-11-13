@@ -14,24 +14,43 @@ model Assignment1
 global {
 	
 	// PARAMETERS
-	int numberOfPeople <- 30;
+	
+	// Weather or not to print on screen
+	bool verbose <- false;
+
+	// Number of instances
+	int numberOfPeopleWithMemory <- 20;
+	int numberOfPeopleWithoutMemory <- 20;
 	int numberOfStores <- 5;
-	int distanceThreshold <- 1;	
 	
-	bool forget <- false;
+	// Distance to consider to be "inside" location
+	int distanceThreshold <- 1;
 	
-	int limit <- 10;	
+	// Number of locations given by Info center
+	int limit <- 10;
+	
+	// Amount of points before considered hungry/thirsty (0-> need to eat/drink; 100-> fully satisfied)
 	int maxHunger <- 100;
 	int maxThirst <- 100;
 	
+	// Speed of Person when wandering v/s when going to a target
+	float targetSpeed <- 1.0;
+	float wanderSpeed <- 1.0;
+	
+	// METRICS (quantify distance traveled depending if agents have or dont have memory)
+	// (time  step considered as 1 and distance traveled proportional to speed)
+	float distanceMemory <- 0.0;
+	float distanceNoMemory <- 0.0;
 	
 	init {
-		create Person number:numberOfPeople;
+		create Person with:[forget::false]  number:numberOfPeopleWithMemory;
+		create Person with:[forget::true]  number:numberOfPeopleWithoutMemory;
+		create Person number:numberOfPeopleWithoutMemory;
 		create Store number:numberOfStores;
 		create Info number:1;
 		
 
-		loop counter from: 1 to: numberOfPeople {
+		loop counter from: 1 to: numberOfPeopleWithMemory + numberOfPeopleWithoutMemory {
         	Person my_agent <- Person[counter - 1];
         	my_agent <- my_agent.setName(counter);
         }
@@ -46,8 +65,7 @@ global {
 
 species Person skills: [moving] {
 		
-	
-	//OTHER ATTRIBUTES
+	bool forget;
 	int hunger <- maxHunger update: updateHunger();
 	int thirst <- maxThirst update: updateThirst();
 	string personName <- "Undefined";
@@ -64,31 +82,31 @@ species Person skills: [moving] {
 	}
 
     int updateHunger{
-    	//write "Updating " + personName;
-    	if (hunger <= 0){    		
-    		//if(infoAvailable and target = nil){
-    		//	target <- 
-    		//}
-    		write "Hunger for person " + personName + " is now " + hunger;
+    	if (hunger <= 0){
+    		if (verbose){
+    			write "Hunger for person " + personName + " is now " + hunger;
+    		}
     		return 0;
     	}
     	else{
-    		write "Hunger for person " + personName + " is now " + (hunger - 1 );
+    		if (verbose){
+    			write "Hunger for person " + personName + " is now " + (hunger - 1 );
+			}
     		return hunger - 1;
     	}
 	}
 
     int updateThirst{
-    	//write "Updating " + personName;
-    	if (thirst <= 0){    		
-    		//if(infoAvailable and target = nil){
-    		//	target <- 
-    		//}
-    		write "Thirst for person " + personName + " is now " + thirst;
+    	if (thirst <= 0){
+    		if (verbose){
+    			write "Thirst for person " + personName + " is now " + thirst;
+    		}
     		return 0;
     	}
     	else{
-    		write "Thirst for person " + personName + " is now " + (thirst - 1 );
+    		if (verbose){
+    			write "Thirst for person " + personName + " is now " + (thirst - 1 );
+    		}
     		return thirst - 1;
     	}
     }
@@ -109,21 +127,43 @@ species Person skills: [moving] {
 	
 	reflex move {
 		if(target != nil){
+			self.speed <- targetSpeed;
+			if(self.forget){
+				distanceNoMemory <- distanceNoMemory + self.speed / numberOfPeopleWithoutMemory;
+			}else{
+				distanceMemory <- distanceMemory + self.speed / numberOfPeopleWithMemory;
+			}
 			do goto target: target;
 		} else{
 			if((thirst = 0 or hunger = 0) and not infoAvailable){
-				do goto target: Info closest_to self;		
+				self.speed <- targetSpeed;
+				if(self.forget){
+					distanceNoMemory <- distanceNoMemory + self.speed / numberOfPeopleWithoutMemory;
+				}else{
+					distanceMemory <- distanceMemory + self.speed / numberOfPeopleWithMemory;
+				}
+				do goto target: Info closest_to self;
 			}else{
+				//self.speed <- wanderSpeed;		
+				//if(self.forget){
+				//	distanceNoMemory <- distanceNoMemory + self.speed / numberOfPeopleWithoutMemory;
+				//}else{
+				//	distanceMemory <- distanceMemory + self.speed / numberOfPeopleWithMemory;
+				//}
 				do wander;
 			}	
 		}
+		write "Average distance walked forgetting locations:\t" + distanceNoMemory;
+		write "Average distance walked remembering locations:\t" + distanceMemory;
 	}
 	
 
 	reflex gotoFoodStore when: target = nil and hunger = 0 and infoAvailable{
 		if(length(self.foodStores) > 0){
-			Store chosen <- self.foodStores closest_to self;
-			write "Person " + personName + " going to the food store " + chosen;
+			Store chosen <- self.foodStores closest_to self;			
+    		if (verbose){
+				write "Person " + personName + " going to the food store " + chosen;
+			}
 			target <- chosen;		
 		}
 	}
@@ -131,7 +171,9 @@ species Person skills: [moving] {
 	reflex gotoDrinkStore when: target = nil and thirst = 0 and infoAvailable{
 		if(length(self.drinkStores) > 0){
 			Store chosen <- self.drinkStores closest_to self;
-			write "Person " + personName + " going to the drink store " + chosen;
+    		if (verbose){
+				write "Person " + personName + " going to the drink store " + chosen;
+			}
 			target <- chosen;			
 		}
 	}
@@ -139,19 +181,24 @@ species Person skills: [moving] {
 	reflex reportApproachingToStore when: !empty(Store at_distance distanceThreshold) {
 		ask Store at_distance distanceThreshold {
 			if(myself.hunger = 0 and self.hasFood){
-				write myself.personName + " has eaten at " + self.storeName ;
+				
+    			if (verbose){
+					write myself.personName + " has eaten at " + self.storeName ;
+				}
 				myself.hunger <- maxHunger;
 				myself.target <- nil;
-				if(forget){
+				if(myself.forget){
 					myself.foodStores <- [];
 					myself.drinkStores <- [];
 					myself.infoAvailable <- false;
 				}
-			}else if(myself.thirst = 0 and self.hasDrink){
-				write myself.personName + " has drank at " + self.storeName ;
+			}else if(myself.thirst = 0 and self.hasDrink){				
+    			if (verbose){
+					write myself.personName + " has drank at " + self.storeName ;
+				}
 				myself.thirst <- maxThirst;
 				myself.target <- nil;
-				if(forget){
+				if(myself.forget){
 					myself.foodStores <- [];
 					myself.drinkStores <- [];
 					myself.infoAvailable <- false;
