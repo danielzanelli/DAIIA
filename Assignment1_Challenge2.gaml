@@ -20,11 +20,11 @@ global {
 	
 	bool forget <- false;
 	
-	int limit <- 100;
+	int infoLimit <- 100;
 	int maxHunger <- 400;
 	int maxThirst <- 400;
 	
-	float badChance <- 0.1;
+	float badChance <- 0.2;
 	
 	
 	init {
@@ -95,9 +95,9 @@ species Person skills: [moving] {
 		} else if (hunger = 0 and thirst = 0) {
 			agentColor <- rgb("red");
 		} else if (thirst = 0) {
-			agentColor <- rgb("darkorange");
+			agentColor <- rgb("orange");
 		} else if (hunger = 0) {
-			agentColor <- rgb("purple");
+			agentColor <- rgb("blueviolet");
 		}		
 		draw circle(1) color: agentColor;
 	}
@@ -137,35 +137,38 @@ species Person skills: [moving] {
 	
 	reflex reportApproachingToStore when: !empty(Store at_distance distanceThreshold) {
 		ask Store at_distance distanceThreshold {
-			if(myself.hunger = 0 and self.hasFood){
-				//write myself.personName + " has eaten at " + self.storeName ;
-				myself.hunger <- maxHunger;
-				myself.target <- nil;
-				if(forget){
-					myself.foodStores <- [];
-					myself.drinkStores <- [];
-					myself.infoAvailable <- false;
+			if(self = myself.target){
+				if(myself.hunger = 0 and self.hasFood){
+					//write myself.personName + " has eaten at " + self.storeName ;
+					myself.hunger <- maxHunger;
+					myself.target <- nil;
+					if(forget){
+						myself.foodStores <- [];
+						myself.drinkStores <- [];
+						myself.infoAvailable <- false;
+					}
 				}
-			}else if(myself.thirst = 0 and self.hasDrink){
-				//write myself.personName + " has drank at " + self.storeName ;
-				myself.thirst <- maxThirst;
-				myself.target <- nil;
-				if(forget){
-					myself.foodStores <- [];
-					myself.drinkStores <- [];
-					myself.infoAvailable <- false;
+				if(myself.thirst = 0 and self.hasDrink){
+					//write myself.personName + " has drank at " + self.storeName ;
+					myself.thirst <- maxThirst;
+					myself.target <- nil;
+					if(forget){
+						myself.foodStores <- [];
+						myself.drinkStores <- [];
+						myself.infoAvailable <- false;
+					}
 				}
 			}
 		}
 	}
 	
 	reflex reportApproachingToInfo when: !empty(Info at_distance distanceThreshold) {
-		ask Info at_distance distanceThreshold {
-			
-			myself.foodStores <- copy_between(self.foodStores, 0, limit);
-			myself.drinkStores <- copy_between(self.drinkStores, 0, limit);
-			myself.infoAvailable <- true;
-			
+		if(hunger = 0 or thirst = 0){
+			ask Info at_distance distanceThreshold {
+				myself.foodStores <- self.foodStores closest_to(myself, infoLimit);
+				myself.drinkStores <- self.drinkStores closest_to(myself, infoLimit);
+				myself.infoAvailable <- true;
+			}
 		}
 	}
 }
@@ -175,7 +178,8 @@ species Info{
 	
 	list foodStores <- Store at_distance 100000 where each.hasFood;
 	list drinkStores <- Store at_distance 100000 where each.hasDrink;
-	list targetQueue <- [];
+	list targetQueue <- [];	
+	list targetGiven <- [];
 	
 	Guard guard <- Guard closest_to self;
 	
@@ -183,17 +187,20 @@ species Info{
 		draw square(5) color: rgb("black");
 	}
 	
+	reflex callGuard when: length(targetQueue) > 0{		
+		guard.called <- true;
+	}
 	
 	reflex reportApproachingPerson when: !empty(Person at_distance distanceThreshold) {
 		ask Person at_distance distanceThreshold {
-			if(self.bad){
-				write "Bad person detected";
-				myself.guard <- Guard closest_to myself;
-				write "Sent:\t" + myself.guard;
-				myself.guard.called <- true;
-				if(!(self in myself.targetQueue)){
-					myself.targetQueue <- myself.targetQueue + self;
-				}
+			if(self.hunger = 0 or self.thirst = 0){
+				if(self.bad and !(self in myself.targetQueue) and !(self in myself.targetGiven)){
+					write "Bad person detected";
+					myself.guard <- Guard closest_to myself;
+					write "Sent:\t" + myself.guard;
+					myself.targetQueue <- myself.targetQueue + [self];
+					write "Total detected:\t" + (length(myself.targetQueue) + length(myself.targetGiven) );
+				}				
 			}			
 		}
 	}
@@ -207,8 +214,7 @@ species Guard skills: [moving] {
 	Person currentTarget <- nil;
 	bool called <- false;
 	Info infoPlace <- Info closest_to self;
-	
-	
+		
 	
 	aspect base {	
 		draw triangle(5) color: rgb("blue");
@@ -216,12 +222,15 @@ species Guard skills: [moving] {
 	
 	
 	reflex reportApproachingToInfo when: !empty(Info at_distance distanceThreshold) {
-		if(called){
+		if(called and length(targetList) = 0){
 			ask Info at_distance distanceThreshold {
 				myself.targetList <- self.targetQueue;
+				self.targetGiven <- self.targetGiven + self.targetQueue;
 				self.targetQueue <- [];
 				myself.currentTarget <- myself.targetList[0];
-				myself.called <- false;				
+				myself.called <- false;
+				//write "New targets:\t" + myself.targetList;
+				//write "Given targets:\t" + self.targetGiven;
 			}			
 		}
 	}
@@ -232,6 +241,7 @@ species Guard skills: [moving] {
 				if(myself.currentTarget = self){	
 									
 					write "Killed target:\t" + self;
+					
 					self.dead <- true;
 					
 					// Remove first element from the target list
@@ -252,15 +262,16 @@ species Guard skills: [moving] {
 	
 	reflex move {
 		self.speed <- 0.5;
+		//write targetList;
 		if(currentTarget != nil){
-			write "going to target:\t" + currentTarget;
+			//write "going to target:\t" + currentTarget;
 			do goto target: currentTarget;
 		} else{
 			if(called){
-				write "going to info:\t" + infoPlace;
+				//write "going to info:\t" + infoPlace;
 				do goto target: infoPlace;		
 			}else{
-				write "wandering";
+				//write "wandering";
 				do wander;
 			}
 		}
@@ -300,10 +311,10 @@ species Store {
 		
 		if (hasFood and hasDrink) {
 			agentColor <- rgb("darkgreen");
-		} else if (hasFood) {
-			agentColor <- rgb("skyblue");
 		} else if (hasDrink) {
-			agentColor <- rgb("brown");
+			agentColor <- rgb("darkorange");
+		} else if (hasFood) {
+			agentColor <- rgb("purple");
 		}
 		
 		draw square(2) color: agentColor;
