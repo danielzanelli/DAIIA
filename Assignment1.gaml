@@ -151,28 +151,27 @@ species Person skills: [moving] {
 	
 	reflex reportApproachingToStore when: !empty(Store at_distance distanceThreshold) {
 		ask Store at_distance distanceThreshold {
-			if(self = myself.target){
-				if(myself.hunger = 0.0 and self.hasFood){
-					write myself.name + " has eaten at " + self.name;
-					myself.hunger <- maxHunger;
-					myself.target <- nil;
-					if(forget){
-						myself.foodStores <- [];
-						myself.drinkStores <- [];
-						myself.infoAvailable <- false;
-					}
+			if(myself.hunger = 0.0 and self.hasFood){
+				write myself.name + " has eaten at " + self.name;
+				myself.hunger <- maxHunger;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
 				}
-				if(myself.thirst = 0.0 and self.hasDrink){
-					write myself.name + " has drank at " + self.name ;
-					myself.thirst <- maxThirst;
-					myself.target <- nil;
-					if(forget){
-						myself.foodStores <- [];
-						myself.drinkStores <- [];
-						myself.infoAvailable <- false;
-					}
-				}				
 			}
+			if(myself.thirst = 0.0 and self.hasDrink){
+				write myself.name + " has drank at " + self.name ;
+				myself.thirst <- maxThirst;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
+				}
+			}				
+		
 		}
 	}
 }
