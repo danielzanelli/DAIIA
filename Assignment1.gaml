@@ -18,9 +18,9 @@ global {
 	int numberOfStores <- 6;
 	int distanceThreshold <- 1;
 	
-	bool forget <- false;
+	bool forget <- true;
 	
-	int infoLimit <- 3;
+	int infoLimit <- 1;
 	
 	float maxHunger <- 100.0;
 	float hungerReduction <- 1.0;
@@ -57,51 +57,49 @@ species Person skills: [moving] {
 	float hunger <- maxHunger min: 0.0 update: updateHunger();
 	float thirst <- maxThirst min: 0.0 update: updateThirst();
 	// string personName <- "Undefined";
-	bool infoAvailable <- false;	
+	bool infoAvailable <- false;
 	Store target;
 	list foodStores <- [];
 	list drinkStores <- [];
 
     float updateHunger{
-    	//write "Updating " + personName;
-    	if (hunger <= 0.0){    		
+    	if (self.hunger <= 0.0){    		
     		if (verbose){
-    			write "Hunger for " + name + " is now " + hunger;
+    			write "Hunger for " + self.name + " is now " + self.hunger;
     		}
     		return 0.0;
     	}
     	else{
     		if (verbose){
-    			write "Hunger for " + name + " is now " + (hunger - hungerReduction );
+    			write "Hunger for " + self.name + " is now " + (self.hunger - hungerReduction );
     		}
-    		return hunger - hungerReduction;
+    		return self.hunger - hungerReduction;
     	}
 	}
 
     float updateThirst{
-    	//write "Updating " + personName;
-    	if (thirst <= 0.0){  		
+    	if (self.thirst <= 0.0){  		
     		if (verbose){
-    			write "Thirst for " + name + " is now " + thirst;
+    			write "Thirst for " + self.name + " is now " + self.thirst;
     		}
     		return 0.0;
     	}
     	else{
     		if (verbose){
-    			write "Thirst for " + name + " is now " + (thirst - thirstReduction );
+    			write "Thirst for " + self.name + " is now " + (self.thirst - thirstReduction );
     		}
-    		return thirst - thirstReduction;
+    		return self.thirst - thirstReduction;
     	}
     }
 	
 	aspect base {
 		rgb agentColor <- rgb("green");
 		
-		if (hunger = 0 and thirst = 0) {
+		if (self.hunger = 0 and self.thirst = 0) {
 			agentColor <- rgb("red");
-		} else if (thirst = 0) {
+		} else if (self.thirst = 0) {
 			agentColor <- rgb("orange");
-		} else if (hunger = 0) {
+		} else if (self.hunger = 0) {
 			agentColor <- rgb("blueviolet");
 		}
 		
@@ -112,20 +110,26 @@ species Person skills: [moving] {
 		if(target != nil){
 			do goto target: target;
 		} else{
-			if((thirst = 0.0 or hunger = 0.0) and not infoAvailable){
+			if((self.thirst = 0.0 or self.hunger = 0.0) and not infoAvailable){
 				do goto target: Info closest_to self;
 			}else{
-				do wander;
+				do wander speed: 5.0 amplitude: 120.0;
 			}	
 		}
 	}
 	
 	
-	reflex reportApproachingToInfo when: (thirst = 0.0 or hunger = 0.0) and !infoAvailable and !empty(Info at_distance distanceThreshold) {
+	reflex reportApproachingToInfo when: (self.thirst = 0.0 or self.hunger = 0.0) and !infoAvailable and !empty(Info at_distance distanceThreshold) {
 		ask Info at_distance distanceThreshold {
 			
-			myself.foodStores <- self.foodStores closest_to(myself, infoLimit);
-			myself.drinkStores <- self.drinkStores closest_to(myself, infoLimit);
+			if forget {
+				myself.foodStores <- self.foodStores closest_to(myself,1);
+				myself.drinkStores <- self.drinkStores closest_to(myself, 1);
+			}
+			else {
+				myself.foodStores <- self.foodStores closest_to(myself, infoLimit);
+				myself.drinkStores <- self.drinkStores closest_to(myself, infoLimit);
+			}
 			myself.infoAvailable <- true;
 			if (verbose){
 				write myself.name + " : at info, have the info";
@@ -136,41 +140,42 @@ species Person skills: [moving] {
 	}
 	
 
-	reflex gotoFoodStore when: target = nil and hunger = 0.0 and infoAvailable and length(self.foodStores) > 0 {
-		Store chosen <- self.foodStores closest_to self;
-		write name + " going to the food store " + chosen;
-		target <- chosen;
-
+	reflex gotoFoodStore when: self.target = nil and self.hunger = 0.0 and infoAvailable and length(self.foodStores) > 0 {
+		self.target <- self.foodStores closest_to self;
+		write self.name + " -> eat at " + self.target.name;
 	}
 	
-	reflex gotoDrinkStore when: target = nil and thirst = 0.0 and infoAvailable and length(self.drinkStores) > 0 {
-		Store chosen <- self.drinkStores closest_to self;
-		write name + " going to the drink store " + chosen;
-		target <- chosen;
+	reflex gotoDrinkStore when: self.target = nil and self.thirst = 0.0 and infoAvailable and length(self.drinkStores) > 0 {
+		self.target <- self.drinkStores closest_to self;
+		write self.name + " -> drink at " + self.target.name;
 	}
 	
 	reflex reportApproachingToStore when: !empty(Store at_distance distanceThreshold) {
 		ask Store at_distance distanceThreshold {
-				if(myself.hunger = 0.0 and self.hasFood){
-					write myself.name + " has eaten at " + self.name;
-					myself.hunger <- maxHunger;
-					myself.target <- nil;
-					if(forget){
-						myself.foodStores <- [];
-						myself.drinkStores <- [];
-						myself.infoAvailable <- false;
-					}
+			if(myself.hunger = 0.0 and self.hasFood){
+				if (verbose){
+					write myself.name + " has eaten at " + self.name ;
 				}
-				if(myself.thirst = 0.0 and self.hasDrink){
-					write myself.name + " has drank at " + self.name ;
-					myself.thirst <- maxThirst;
-					myself.target <- nil;
-					if(forget){
-						myself.foodStores <- [];
-						myself.drinkStores <- [];
-						myself.infoAvailable <- false;
-					}
+				myself.hunger <- maxHunger;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
 				}
+			}
+			if(myself.thirst = 0.0 and self.hasDrink){
+				if (verbose){
+					write myself.name + " has drunk at " + self.name ;
+				}
+				myself.thirst <- maxThirst;
+				myself.target <- nil;
+				if(forget){
+					myself.foodStores <- [];
+					myself.drinkStores <- [];
+					myself.infoAvailable <- false;
+				}
+			}
 		}
 	}
 }
@@ -197,13 +202,13 @@ species Store {
 	//Initialize with probability 1/3 'has drinks', 1/3 'has food' and 1/3 'has both'	
 	init{		
 		if (flip(0.333)){
-			hasFood <- true;
-			hasDrink <- true;
+			self.hasFood <- true;
+			self.hasDrink <- true;
 		}else{
 			if flip(0.5){
-				hasDrink <- true;
+				self.hasDrink <- true;
 			}else{
-				hasFood <- true;				
+				self.hasFood <- true;				
 			}
 		}
 	}
@@ -211,11 +216,11 @@ species Store {
 	aspect base {
 		rgb agentColor <- rgb("lightgray");
 		
-		if (hasFood and hasDrink) {
+		if (self.hasFood and self.hasDrink) {
 			agentColor <- rgb("darkgreen");
-		} else if (hasDrink) {
+		} else if (self.hasDrink) {
 			agentColor <- rgb("darkorange");
-		} else if (hasFood) {
+		} else if (self.hasFood) {
 			agentColor <- rgb("purple");
 		}
 		
