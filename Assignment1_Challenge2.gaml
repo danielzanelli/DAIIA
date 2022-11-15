@@ -343,18 +343,12 @@ experiment myAssignment type:gui {
 	
 	parameter "numberOfPeople" category: "Agents" var:numberOfPeople;
 	parameter "numberOfStores" category: "Agents" var:numberOfStores;
-	parameter "distanceThreshold" var:distanceThreshold;	
-	
-	parameter "forget" var:forget;
-	
-	parameter "infoLimit" var:infoLimit min:0 max:numberOfStores;
-	
-	parameter "maxHunger" var:maxHunger;
-	
-	parameter "maxThirst" var:maxThirst;
-	
-	parameter "badChance" var:badChance;
-	
+	parameter "distanceThreshold" var:distanceThreshold;
+	parameter "forget" var:forget;	
+	parameter "infoLimit" var:infoLimit min:0 max:numberOfStores;	
+	parameter "maxHunger" var:maxHunger;	
+	parameter "maxThirst" var:maxThirst;	
+	parameter "badChance" var:badChance;	
 	parameter "verbose" var: verbose;
 	
 	
