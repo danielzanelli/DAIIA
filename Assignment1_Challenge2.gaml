@@ -14,8 +14,8 @@ model Assignment1
 global {
 	
 	// PARAMETERS
-	int numberOfPeople <- 200;
-	int numberOfStores <- 50;
+	int numberOfPeople <- 100;
+	int numberOfStores <- 20;
 	int distanceThreshold <- 5;	
 	
 	bool forget <- false;
@@ -24,7 +24,9 @@ global {
 	int maxHunger <- 400;
 	int maxThirst <- 400;
 	
-	float badChance <- 0.2;
+	float badChance <- 0.5;
+	
+	bool verbose <- false;
 	
 	
 	init {
@@ -68,7 +70,9 @@ species Person skills: [moving] {
 
     int updateHunger{
     	if (hunger <= 0){
-    		//write "Hunger for person " + personName + " is now " + hunger;
+    		if(verbose){
+    			write "Hunger for person " + personName + " is now " + hunger;    			
+			}
     		return 0;
     	}
     	else{
@@ -79,7 +83,9 @@ species Person skills: [moving] {
 
     int updateThirst{
     	if (thirst <= 0){
-    		//write "Thirst for person " + personName + " is now " + thirst;
+    		if(verbose){
+    			write "Thirst for person " + personName + " is now " + thirst;
+			}
     		return 0;
     	}
     	else{
@@ -122,7 +128,9 @@ species Person skills: [moving] {
 	reflex gotoFoodStore when: target = nil and hunger = 0 and infoAvailable{
 		if(length(self.foodStores) > 0){
 			Store chosen <- self.foodStores closest_to self;
-			//write "Person " + personName + " going to the food store " + chosen;
+			if(verbose){
+				write "Person " + personName + " going to the food store " + chosen;
+			}
 			target <- chosen;		
 		}
 	}
@@ -130,7 +138,9 @@ species Person skills: [moving] {
 	reflex gotoDrinkStore when: target = nil and thirst = 0 and infoAvailable{
 		if(length(self.drinkStores) > 0){
 			Store chosen <- self.drinkStores closest_to self;
-			//write "Person " + personName + " going to the drink store " + chosen;
+			if(verbose){
+				write "Person " + personName + " going to the drink store " + chosen;
+			}
 			target <- chosen;			
 		}
 	}
@@ -138,7 +148,9 @@ species Person skills: [moving] {
 	reflex reportApproachingToStore when: !empty(Store at_distance distanceThreshold) {
 		ask Store at_distance distanceThreshold {
 			if(myself.hunger = 0 and self.hasFood){
-				//write myself.personName + " has eaten at " + self.storeName ;
+				if(verbose){
+					write myself.personName + " has eaten at " + self.storeName ;
+				}
 				myself.hunger <- maxHunger;
 				myself.target <- nil;
 				if(forget){
@@ -148,7 +160,9 @@ species Person skills: [moving] {
 				}
 			}
 			if(myself.thirst = 0 and self.hasDrink){
-				//write myself.personName + " has drank at " + self.storeName ;
+				if(verbose){
+					write myself.personName + " has drank at " + self.storeName ;
+				}
 				myself.thirst <- maxThirst;
 				myself.target <- nil;
 				if(forget){
@@ -193,11 +207,13 @@ species Info{
 		ask Person at_distance distanceThreshold {
 			if(self.hunger = 0 or self.thirst = 0){
 				if(self.bad and !(self in myself.targetQueue) and !(self in myself.targetGiven)){
-					write "Bad person detected";
+					write "Bad person detected at Info";
 					myself.guard <- Guard closest_to myself;
-					write "Sent:\t" + myself.guard;
 					myself.targetQueue <- myself.targetQueue + [self];
-					write "Total detected:\t" + (length(myself.targetQueue) + length(myself.targetGiven) );
+					if(verbose){
+						write "Sent:\t" + myself.guard;
+						write "Total detected:\t" + (length(myself.targetQueue) + length(myself.targetGiven) );
+					}
 				}				
 			}			
 		}
@@ -227,8 +243,10 @@ species Guard skills: [moving] {
 				self.targetQueue <- [];
 				myself.currentTarget <- myself.targetList[0];
 				myself.called <- false;
-				//write "New targets:\t" + myself.targetList;
-				//write "Given targets:\t" + self.targetGiven;
+				if(verbose){
+					write "New targets:\t" + myself.targetList;
+					write "Given targets:\t" + self.targetGiven;
+				}
 			}			
 		}
 	}
@@ -322,6 +340,24 @@ species Store {
 
 
 experiment myAssignment type:gui {
+	
+	parameter "numberOfPeople" category: "Agents" var:numberOfPeople;
+	parameter "numberOfStores" category: "Agents" var:numberOfStores;
+	parameter "distanceThreshold" var:distanceThreshold;	
+	
+	parameter "forget" var:forget;
+	
+	parameter "infoLimit" var:infoLimit min:0 max:numberOfStores;
+	
+	parameter "maxHunger" var:maxHunger;
+	
+	parameter "maxThirst" var:maxThirst;
+	
+	parameter "badChance" var:badChance;
+	
+	parameter "verbose" var: verbose;
+	
+	
 	output {
 		display myDisplay {
 			species Guard aspect:base;
