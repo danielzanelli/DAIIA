@@ -1,12 +1,12 @@
 /**
-* Name: assignment2
+* Name: Assignment2Ch1
 * Based on the internal empty template. 
 * Author: Mehdi, Daniel
 * Tags: 
 */
 
 
-model Assignment2
+model Assignment2Ch1
 
 /* Insert your model definition here */
 
