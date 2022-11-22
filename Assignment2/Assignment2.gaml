@@ -43,27 +43,35 @@ species Initiator skills:[fipa]{
 	list final_bidders <- [];
 	Participant final_bidder;
 	
+		
+	aspect base {
+		rgb agentColor <- rgb("blue");
+		
+		draw square(1) color: agentColor;
+	}
+	
 	reflex send_inform1 when:(time = 1) {
 		write self.name + ': sending inform , start of auction';
-		do start_conversation to:Participant.population protocol:'Dutch-inform' performative:'inform' contents:self.inform1Contents;
+		do start_conversation to:Participant.population performative:'inform' contents:self.inform1Contents;
 		self.cfpTime <- true;
 	}
 	
 	reflex send_inform2 when:(self.inform2Time) {
 		write self.name + ': sending inform, no bids';
-		do start_conversation to:Participant.population protocol:'Dutch-inform' performative:'inform' contents:self.inform2Contents;
+		do start_conversation to:Participant.population performative:'inform' contents:self.inform2Contents;
 	}
 	
 	reflex send_cfp when:(self.cfpTime) {
 		write 'sending call for proposals at price ' + self.price;
-		do start_conversation to:Participant.population protocol:'Dutch-cfp' performative:'cfp' contents:['selling my phone', self.price];
+		do start_conversation to:Participant.population performative:'cfp' contents:['selling my phone', self.price];
 		self.cfpTime <- false;
 	}
 	
 	reflex read_cfp when: !empty(cfps) {
 		loop p over: cfps {
-			if p.contents at 1 {
-				self.final_bidders <- self.final_bidders + (p.contents at 0);
+			write p.contents;
+			if p.contents[1] {
+				self.final_bidders <- self.final_bidders + (p.contents[0]);
 			}
 		}
 		if length(self.final_bidders) >= 1 {
@@ -95,6 +103,12 @@ species Participant skills:[fipa]{
 		}
 	}
 	
+	aspect base {
+		rgb agentColor <- rgb("green");
+		
+		draw circle(1) color: agentColor;
+	}
+	
 	reflex write_inform_msg when: !empty(informs) {
 		message informFromInitiator <- (informs at 0);
 		if verbose {
@@ -107,7 +121,8 @@ species Participant skills:[fipa]{
 		if verbose {
 			write self.name + ': received cfp msg, ' + cfpFromInitiator.contents;
 		}
-		self.auctioner_price <- cfpFromInitiator.contents at 1;
+		write cfpFromInitiator.contents[1];
+		self.auctioner_price <- cfpFromInitiator.contents[1];
 		if self.auctioner_price > self.my_bid {
 			if verbose {
 				write self.name + ': price rejected; my bid will be at ' + self.my_bid;
@@ -123,3 +138,23 @@ species Participant skills:[fipa]{
 	}
 }
 
+
+experiment gui_experiment type:gui {
+	
+
+	parameter "numberOfParticipant" category: "Agents" var:numberOfParticipant;
+	
+	parameter "initialPrice" var:initialPrice;
+	parameter "priceInterval" var:priceInterval;
+	parameter "minPrice" var:minPrice;
+	
+	parameter "forceNoBid" var: forceNoBid;
+	parameter "verbose" var: verbose;
+	
+	output {
+		display myDisplay {
+			species Initiator aspect:base;
+			species Participant aspect:base;
+		}
+	}
+}
