@@ -58,6 +58,7 @@ species Initiator skills:[fipa]{
 	reflex send_inform2 when:(self.inform2Time) {
 		write self.name + ': sending inform, no bids';
 		do start_conversation to:Participant.population performative:'inform' contents:self.inform2Contents; // protocol:'fipa-inform'
+		inform2Time <- false;
 	}
 	
 	reflex send_cfp when:(self.cfpTime) {
