@@ -13,8 +13,8 @@ model Assignment2Ch1
 global {
 	
 	// PARAMETERS
-	int numberOfParticipant <- 30;
-	int numberOfInitiators <- 3;
+	int numberOfParticipant <- 1;
+	int numberOfInitiators <- 100;
 	
 
 	float priceInterval <- 50.0;
@@ -24,7 +24,7 @@ global {
 	
 	bool forceNoBid <- false;
 	
-	bool verbose <- true;
+	bool verbose <- false;
 	
 	
 	init {
@@ -36,7 +36,7 @@ global {
 				create DutchInitiator;
 			}
 			if (counter mod 3 = 1){
-				create BritishInitiator;
+				create EnglishInitiator;
 			}
 			if (counter mod 3 = 2){
 				create SealedInitiator;
@@ -51,6 +51,7 @@ global {
 species DutchInitiator skills:[fipa]{
 	
 	float price <- maxPrice;
+	float pevious_budget;
 	
 	list inform1Contents <- ['start of auction'];
 	
@@ -64,7 +65,7 @@ species DutchInitiator skills:[fipa]{
 
 	
 	reflex send_inform1 when:(time = 1) {
-		write self.name + ': sending inform , start of auction';
+		write self.name + ': sending inform, start of auction';
 		do start_conversation to:Participant.population performative:'inform' contents:self.inform1Contents; // protocol:'fipa-inform'
 		self.cfpTime <- true;
 	}
@@ -76,7 +77,9 @@ species DutchInitiator skills:[fipa]{
 	}
 	
 	reflex send_cfp when:(self.cfpTime) {
-		write 'sending call for proposals at price ' + self.price;
+		if(verbose){
+			write 'sending call for proposals at price ' + self.price;
+		}
 		do start_conversation to:Participant.population performative:'cfp' contents:['dutch', self.price]; // protocol:'fipa-cfp'
 		self.cfpTime <- false;
 	}
@@ -89,13 +92,27 @@ species DutchInitiator skills:[fipa]{
 		}
 		if length(self.final_bidders) >= 1 {
 			self.final_bidder <- 1 among self.final_bidders at 0;
-			write self.name + ': stuff sold to ' + self.final_bidder;
+			write self.name + ": auction done, sold to: " + self.final_bidder + " for: " + self.price;
+			if forceNoBid {
+				self.final_bidder.budget <- 0.0;
+				write "Participant Re-Initiated with budget:\t" + self.final_bidder.budget;
+			}
+			else {
+				self.final_bidder.dutch_utility <- self.final_bidder.dutch_utility + (self.final_bidder.budget - self.price);
+				write "\nParticipant Utilities:\t Dutch: " + self.final_bidder.dutch_utility + "\tEnglish: "+ self.final_bidder.english_utility +  "\tSealed: "+ self.final_bidder.sealed_utility + '\n';
+				self.final_bidder.budget <- rnd(minPrice, maxPrice);
+				write "Participant Re-Initiated with budget:\t" + self.final_bidder.budget + '\n';
+			}
+			self.inform2Time <- true;
+			self.cfpTime <- false;
 		}
 		else {
 			self.price <- self.price - priceInterval;
 			if self.price > minPrice {
 				self.cfpTime <- true;
-				write self.name + ': no bidder, calling for a lower price';
+				if(verbose){
+					write self.name + ': no bidder, calling for a lower price';
+				}
 			}
 			else {
 				self.inform2Time <- true;
@@ -107,9 +124,8 @@ species DutchInitiator skills:[fipa]{
 }
 
 
-species BritishInitiator skills:[fipa]{
+species EnglishInitiator skills:[fipa]{
 	
-	float price <- minPrice;
 	
 	list inform1Contents <- ['start of auction'];
 	
@@ -118,12 +134,14 @@ species BritishInitiator skills:[fipa]{
 	
 	bool cfpTime <- false;
 	
-	bool done <- false;
-	Participant final_bidder;
+	Participant max_bidder;
+	Participant previous_bidder;
+	float price <- minPrice;
+	float previous_budget;
 
 	
 	reflex send_inform1 when:(time = 1) {
-		write self.name + ': sending inform , start of auction';
+		write self.name + ': sending inform, start of auction';
 		do start_conversation to:Participant.population performative:'inform' contents:self.inform1Contents; // protocol:'fipa-inform'
 		self.cfpTime <- true;
 	}
@@ -135,39 +153,56 @@ species BritishInitiator skills:[fipa]{
 	}
 	
 	reflex send_cfp when:(self.cfpTime) {
-		write 'sending call for proposals at price ' + self.price;
-		do start_conversation to:Participant.population performative:'cfp' contents:['british', self.price]; // protocol:'fipa-cfp'
+		if(verbose){
+			write 'sending call for proposals at price ' + self.price;
+		}
+		do start_conversation to:Participant.population performative:'cfp' contents:['english', self.price]; // protocol:'fipa-cfp'
 		self.cfpTime <- false;
 	}
 	
 	reflex read_cfp when: !empty(cfps) {
-		if(not done){
-			float maxOffer <- 0.0;
-			loop p over: cfps {
-				if bool(p.contents[1]) {
-					if(float(p.contents[2]) > maxOffer){
-						maxOffer <- float(p.contents[2]);
-						self.final_bidder <- p.contents[0];
-					}
+		float maxOffer <- 0.0;
+		loop p over: cfps {
+			if bool(p.contents[1]) {
+				if(float(p.contents[2]) > maxOffer){
+					maxOffer <- float(p.contents[2]);
+					self.max_bidder <- p.contents[0];
 				}
 			}
-			if self.price > maxOffer {
+		}
+		if self.price > maxOffer {
+			self.inform2Time <- true;
+			self.cfpTime <- false;
+			if(self.previous_bidder = nil){
+				write self.name + ": no bids were made, bid over without sale";
+			}
+			else{
+				write self.name + ": no bids this round, winner is previous highest bidder";
+				write self.name + ": auction done, sold to: " + self.previous_bidder + " for: " + self.price;
+				if forceNoBid {
+					self.previous_bidder.budget <- 0.0;
+					write "Participant Re-Initiated with budget:\t" + self.previous_bidder.budget;
+				}
+				else {
+					self.previous_bidder.english_utility <- self.previous_bidder.english_utility + (self.previous_budget - self.price);
+				write "\nParticipant Utilities:\t Dutch: " + self.previous_bidder.dutch_utility + "\tEnglish: "+ self.previous_bidder.english_utility +  "\tSealed: "+ self.previous_bidder.sealed_utility + '\n';
+					self.previous_bidder.budget <- rnd(minPrice, maxPrice);
+					write "Participant Re-Initiated with budget:\t" + self.previous_bidder.budget + '\n';
+				}
 				self.inform2Time <- true;
 				self.cfpTime <- false;
-				if(self.final_bidder = nil){
-					write self.name + ": auction done without sale, max bid too low: " + maxOffer;
-				}
-				else{
-					write self.name + ': auction done, stuff sold to: ' + self.final_bidder;
-				}
 			}
-			else {
-				self.price <- maxOffer;
-				write self.name + ": bid received, current bid price: " + self.price;
-				self.cfpTime <- true;
-			}
-			
 		}
+		else {
+			self.price <- maxOffer;
+			self.previous_bidder <- self.max_bidder;
+			self.previous_budget <- self.max_bidder.budget;
+			if(verbose){
+				write self.name + ": bid received, current bid price: " + self.price;
+			}
+			self.cfpTime <- true;
+		}
+		
 	}
 	
 }
@@ -187,7 +222,7 @@ species SealedInitiator skills:[fipa]{
 
 	
 	reflex send_inform1 when:(time = 1) {
-		write self.name + ': sending inform , start of auction';
+		write self.name + ': sending inform, start of auction';
 		do start_conversation to:Participant.population performative:'inform' contents:self.inform1Contents; // protocol:'fipa-inform'
 		self.cfpTime <- true;
 	}
@@ -205,36 +240,39 @@ species SealedInitiator skills:[fipa]{
 	}
 	
 	reflex read_cfp when: !empty(cfps) {
-		if(not done){
-			float maxOffer <- 0.0;
-			loop p over: cfps {
-				if bool(p.contents[1]) {
-					if(float(p.contents[2]) > maxOffer){
-						maxOffer <- float(p.contents[2]);
-						self.final_bidder <- p.contents[0];
-					}
+		float maxOffer <- 0.0;
+		loop p over: cfps {
+			if bool(p.contents[1]) {
+				if(float(p.contents[2]) > maxOffer){
+					maxOffer <- float(p.contents[2]);
+					self.final_bidder <- p.contents[0];
 				}
 			}
-			if minPrice > maxOffer {
-				self.inform2Time <- true;
-				self.cfpTime <- false;
-				if(self.final_bidder = nil){
-					write self.name + ": auction done without sale, max bid too low: " + maxOffer;
-				}
-				else{
-					write self.name + ': auction done, stuff sold to: ' + self.final_bidder;
-				}
+		}
+		if  maxOffer < minPrice {
+			self.inform2Time <- true;
+			self.cfpTime <- false;			
+			write self.name + ': auction done without selling';
+		}			
+		
+		else {
+			write self.name + ": auction done, sold to: " + self.final_bidder + " for: " + maxOffer;
+			if forceNoBid {
+				self.final_bidder.budget <- 0.0;
+				write "Participant Re-Initiated with budget:\t" + self.final_bidder.budget;
 			}
 			else {
-				write self.name + ": auction done, sold to: " + self.final_bidder + " for: " + maxOffer;
-				self.inform2Time <- true;
-				self.cfpTime <- false;
+				write "\nParticipant Utilities:\t Dutch: " + self.final_bidder.dutch_utility + "\tEnglish: "+ self.final_bidder.english_utility +  "\tSealed: "+ self.final_bidder.sealed_utility + '\n';
+				self.final_bidder.budget <- rnd(minPrice, maxPrice);
+				write "Participant Re-Initiated with budget:\t" + self.final_bidder.budget + '\n';
 			}
-			
+			self.inform2Time <- true;
+			self.cfpTime <- false;
 		}
+			
 	}
-	
 }
+	
 
 
 
@@ -242,62 +280,67 @@ species SealedInitiator skills:[fipa]{
 
 species Participant skills:[fipa]{
 	float budget;
+	float dutch_utility <-0.0;
+	float english_utility <-0.0;
+	float sealed_utility <-0.0;
 	//float auctioner_price;
 	
 	init{
 		if forceNoBid {
-			self.budget <- minPrice / 2;
+			self.budget <- 0.0;
+			write "Participant Initiated with budget:\t" + self.budget;
 		}
-		else {			
+		else {
 			self.budget <- rnd(minPrice, maxPrice);
+			write self.name  +" Initiated with budget:\t" + self.budget;
 		}
 	}
 	
 	reflex write_inform_msg when: !empty(informs) {
 		message informFromInitiator <- (informs at 0);
 		if verbose {
-			write self.name + ': received inform msg, ' + informFromInitiator.contents;
+			write self.name + ':\treceived inform msg:\t' + informFromInitiator.contents;
 		}
 	}
 	
 	reflex reply_cfp_msg when: !empty(cfps) {
 		message cfpFromInitiator <- (cfps at 0);
 		if verbose {
-			write self.name + ': received cfp msg, ' + cfpFromInitiator.contents;
+			write self.name + ':\treceived cfp msg:\t' + cfpFromInitiator.contents;
 		}
 		if (cfpFromInitiator.contents[0] = 'dutch'){
 			
 			if float(cfpFromInitiator.contents[1]) > self.budget {
 				if verbose {
-					write self.name + ': price rejected; willing to pay ' + self.budget;
+					write "(dutch)\t" +self.name + ':\tprice rejected; willing to pay ' + self.budget;
 				}
 				do cfp message:cfpFromInitiator contents:[self, false];
 			}
 			else {
 				if verbose {
-					write self.name + ': price accepted; willing to pay ' + self.budget;
+					write "(dutch)\t" +self.name + ':\tprice accepted; willing to pay ' + self.budget;
 				}
 				do cfp message:cfpFromInitiator contents:[self, true];
 			}			
 		}
-		else if(cfpFromInitiator.contents[0] = 'british'){
+		else if(cfpFromInitiator.contents[0] = 'english'){
 			
 			if float(cfpFromInitiator.contents[1]) + priceInterval > self.budget {
 				if verbose {
-					write self.name + ': price rejected; willing to pay ' + self.budget;
+					write  "(english)\t" + self.name + ':\tprice rejected; willing to pay ' + self.budget;
 				}
 				do cfp message:cfpFromInitiator contents:[self, false, self.budget];
 			}
 			else {
 				if verbose {
-					write self.name + ': participating in british auction, bidding price: ' + (float(cfpFromInitiator.contents[1]) + priceInterval);
+					write "(english)\t" +self.name + ':\tparticipating in english auction, bidding price: ' + (float(cfpFromInitiator.contents[1]) + priceInterval);
 				}
 				do cfp message:cfpFromInitiator contents:[self, true, (float(cfpFromInitiator.contents[1]) + priceInterval)];
 			}			
 		}
 		else if(cfpFromInitiator.contents[0] = 'sealed'){		
 			if verbose {
-				write self.name + ': participating in sealed auction, bidding price: ' + self.budget;
+				write "(sealed)\t" +self.name + ':\tparticipating in sealed auction, bidding price: ' + self.budget;
 			}	
 			do cfp message:cfpFromInitiator contents:[self, true, self.budget];
 		}
@@ -307,17 +350,16 @@ species Participant skills:[fipa]{
 
 
 
-experiment gui_experiment type:gui {
+experiment gui_experiment {
 	
 
-	parameter "numberOfParticipant" category: "Agents" var:numberOfParticipant;
-	
-	//parameter "initialPrice" var:initialPrice;
-	parameter "priceInterval" var:priceInterval;
-	parameter "minPrice" var:minPrice;
-	
-	parameter "forceNoBid" var: forceNoBid;
-	parameter "verbose" var: verbose;
+	parameter "Participants" category: "Agents" var:numberOfParticipant;
+	parameter "Auctioners" category: "Agents" var:numberOfInitiators;
+	parameter "Auction Price Interval" category: "Agents"  var:priceInterval;
+	parameter "Min Auction Price" category: "Agents"  var:minPrice;
+	parameter "Max Auction Price" category: "Agents"  var:maxPrice;
+	parameter "Force no-bid" category: "Agents"  var: forceNoBid;	
+	parameter "verbose" category: "Agents" var: verbose;
 	
 
 }
