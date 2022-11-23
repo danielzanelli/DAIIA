@@ -13,8 +13,8 @@ model Assignment2Ch1
 global {
 	
 	// PARAMETERS
-	int numberOfParticipant <- 1;
-	int numberOfInitiators <- 100;
+	int numberOfParticipant <- 5;
+	int numberOfInitiators <- 50;
 	
 
 	float priceInterval <- 50.0;
@@ -51,7 +51,6 @@ global {
 species DutchInitiator skills:[fipa]{
 	
 	float price <- maxPrice;
-	float pevious_budget;
 	
 	list inform1Contents <- ['start of auction'];
 	
@@ -358,8 +357,7 @@ experiment gui_experiment {
 	parameter "Auction Price Interval" category: "Agents"  var:priceInterval;
 	parameter "Min Auction Price" category: "Agents"  var:minPrice;
 	parameter "Max Auction Price" category: "Agents"  var:maxPrice;
-	parameter "Force no-bid" category: "Agents"  var: forceNoBid;	
-	parameter "verbose" category: "Agents" var: verbose;
+	parameter "Verbose" category: "Agents" var: verbose;
 	
 
 }
