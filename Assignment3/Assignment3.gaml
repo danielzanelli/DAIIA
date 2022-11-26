@@ -14,6 +14,9 @@ global {
 	int numberOfStages <- 5;
 	int numberOfPeople <- 100;
 	
+	float distanceThreshold <- 10.0;	
+	int newActEvery <- 100;
+	
 	bool verbose <- true;
 
 	init {
@@ -40,7 +43,6 @@ species Stage skills: [fipa]{
 	int people_coming;
 	int people_here;
 	
-	int newActEvery <- 100;
 	
 	ChessBoard myCell; 
 	int id; 
@@ -49,29 +51,24 @@ species Stage skills: [fipa]{
 	float size <- 20/numberOfStages;
 	
 	init{
-		lightshow_quality <- rnd( 0.0, 100.0 );
-		speaker_quality <- rnd( 0.0, 100.0 );
-		band_quality <- rnd( 0.0, 100.0 );
+		lightshow_quality <- rnd( 0.0, 1.0 );
+		speaker_quality <- rnd( 0.0, 1.0 );
+		band_quality <- rnd( 0.0, 1.0 );
 		act <- [lightshow_quality, speaker_quality, band_quality];
 		informNewAct <- true;
 	}
-       
-    //reflex updateCell {
-    //	write('id' + id);
-    //	write('X: ' + myCell.grid_x + ' - Y: ' + myCell.grid_y);
-    //	myCell <- ChessBoard[myCell.grid_x,  mod(index, numberOfQueens)];
-    //	location <- myCell.location;
-    //	index <- index + 1;
-    //}
     
     reflex newAct when: (int(time) mod newActEvery = 0) {
-    	write string(time) + "\tNew act on \t" + self;
-		lightshow_quality <- rnd( 0.0, 100.0 );
-		speaker_quality <- rnd( 0.0, 100.0 );
-		band_quality <- rnd( 0.0, 100.0 );
+    	if(verbose){
+    		write string(time) + "\tNew act on \t" + self;
+    	}
+		lightshow_quality <- rnd( 0.0, 1.0 );
+		speaker_quality <- rnd( 0.0, 1.0 );
+		band_quality <- rnd( 0.0, 1.0 );
 		act <- [lightshow_quality, speaker_quality, band_quality];
-
-		write self.name + ': sending inform, start of act';
+		if(verbose){
+			write self.name + ': sending inform, start of act';
+		}
 		do start_conversation to:Person.population performative:'inform' contents:[act, self]; // protocol:'fipa-inform'
 	}
 	
@@ -98,7 +95,6 @@ species Person skills: [moving,  fipa]{
 	float preference_speakers;
 	float preference_band;
 	
-	float distanceThreshold <- 10.0;
 	
 	list utility <-[];
 	list stages <- [];
@@ -107,9 +103,9 @@ species Person skills: [moving,  fipa]{
 	Stage watchingAct <- nil;
 	
 	init{
-		preference_lightshow <- rnd( 0.0, 100.0 );
-		preference_speakers <- rnd( 0.0, 100.0 );
-		preference_band <- rnd( 0.0, 100.0 );
+		preference_lightshow <- rnd( 0.0, 1.0 );
+		preference_speakers <- rnd( 0.0, 1.0 );
+		preference_band <- rnd( 0.0, 1.0 );
 	}
 	
 	reflex arrivedToStage when:!empty(Stage at_distance distanceThreshold){
@@ -142,7 +138,7 @@ species Person skills: [moving,  fipa]{
 		}
 		int i <- 0;
 		loop s over: stages{
-			if(s = informFromInitiator.contents[0]){
+			if(s = informFromInitiator.contents[1]){
 				stages <- stages - s;
 				utility <- utility - utility[i];
 			} 
@@ -154,8 +150,24 @@ species Person skills: [moving,  fipa]{
 		];
 		stages <- stages + [informFromInitiator.contents[1]];
 		target <- stages[index_of(utility, max(utility))];
-		watchingAct <- nil;
-		write self.name + ':\t going to stage:\t' + target;
+		
+		if(verbose){
+			write self.name + ':\t utility:\t' + utility;
+			write self.name + ':\t stages:\t' + stages;			
+		}
+		
+		if (target = watchingAct){
+			target <- nil;
+			if(verbose){
+				write self.name + ':\t staying at stage:\t' + watchingAct;
+			}
+		}
+		else{
+			watchingAct <- nil;			
+			if(verbose){
+				write self.name + ':\t going to stage:\t' + target;
+			}
+		}
 	}
 	
 	aspect base {
@@ -189,7 +201,14 @@ grid ChessBoard width: numberOfStages height: numberOfStages {
 
 }
 
-experiment Assignment3 type: gui{
+experiment Assignment3 type: gui{	
+
+	parameter "People" category: "Agents" var:numberOfPeople;
+	parameter "Stages" category: "Agents" var:numberOfStages;
+	parameter "Distance Threshold" category: "Agents"  var:distanceThreshold;
+	parameter "New Act Every" category: "Agents"  var:newActEvery;
+	parameter "Verbose" category: "Agents" var: verbose;
+	
 	output{
 		display ChessBoard{
 			grid ChessBoard border: #black ;
