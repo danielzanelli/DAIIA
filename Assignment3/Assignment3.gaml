@@ -12,10 +12,10 @@ model Assignment3
 global {
 	
 	int numberOfStages <- 5;
-	int numberOfPeople <- 100;
+	int numberOfPeople <- 50;
 	
 	float distanceThreshold <- 10.0;	
-	int newActEvery <- 100;
+	int newActEvery <- 500;
 	
 	bool verbose <- true;
 
@@ -40,22 +40,21 @@ species Stage skills: [fipa]{
 	float band_quality;
 	
 	list act;
-	int people_coming;
-	int people_here;
+	list people_coming;
 	
 	
 	ChessBoard myCell; 
 	int id; 
 	int index <- 0;
-	bool informNewAct;
 	float size <- 20/numberOfStages;
+	
+	bool respond_cfp <- false;
 	
 	init{
 		lightshow_quality <- rnd( 0.0, 1.0 );
 		speaker_quality <- rnd( 0.0, 1.0 );
 		band_quality <- rnd( 0.0, 1.0 );
 		act <- [lightshow_quality, speaker_quality, band_quality];
-		informNewAct <- true;
 	}
     
     reflex newAct when: (int(time) mod newActEvery = 0) {
@@ -70,6 +69,29 @@ species Stage skills: [fipa]{
 			write self.name + ': sending inform, start of act';
 		}
 		do start_conversation to:Person.population performative:'inform' contents:[act, self]; // protocol:'fipa-inform'
+		people_coming <- [];
+	}
+	
+	
+	reflex read_cfp when: !empty(cfps) {
+		loop p over: cfps {
+			if p.contents[0] = 'going to stage' {
+				if !(p.contents[1] in people_coming){
+					people_coming <- people_coming + p.contents[1];
+				}
+			}
+			else if p.contents[0] = 'leaving stage'{
+				people_coming <- people_coming - p.contents[1];
+			}
+		}
+		if length(people_coming)>0{
+			respond_cfp <- true;
+		}
+	}
+	
+	reflex send_cfp when:respond_cfp {
+		do start_conversation to:Person.population performative:'cfp' contents:[length(people_coming)/numberOfPeople, self, act]; // protocol:'fipa-cfp'
+		respond_cfp <- false;
 	}
 	
     
@@ -96,16 +118,20 @@ species Person skills: [moving,  fipa]{
 	float preference_band;
 	
 	
+	float crowd_affinity;
+	
 	list utility <-[];
 	list stages <- [];
 	
 	Stage target <- nil;
+	Stage previousTarget <- nil;
 	Stage watchingAct <- nil;
 	
 	init{
 		preference_lightshow <- rnd( 0.0, 1.0 );
 		preference_speakers <- rnd( 0.0, 1.0 );
 		preference_band <- rnd( 0.0, 1.0 );
+		crowd_affinity <- rnd( -0.5, 0.5 );
 	}
 	
 	reflex arrivedToStage when:!empty(Stage at_distance distanceThreshold){
@@ -132,23 +158,26 @@ species Person skills: [moving,  fipa]{
 	}
 	
 	reflex receiveNewAct when: !empty(informs) {
-		message informFromInitiator <- (informs at 0);
+		message informFromStage <- (informs at 0);
 		if verbose {
-			write self.name + ':\treceived inform msg:\t' + informFromInitiator.contents;
+			write self.name + ':\treceived inform msg:\t' + informFromStage.contents;
 		}
 		int i <- 0;
 		loop s over: stages{
-			if(s = informFromInitiator.contents[1]){
+			if(s = informFromStage.contents[1]){
 				stages <- stages - s;
 				utility <- utility - utility[i];
 			} 
 			i <- i+1;
 		}
-		utility <- utility + [float(informFromInitiator.contents[0][0]) * float(preference_lightshow) + 
-			float(informFromInitiator.contents[0][1]) * float(preference_speakers) +
-			float(informFromInitiator.contents[0][2]) * float(preference_band)
-		];
-		stages <- stages + [informFromInitiator.contents[1]];
+		if !([informFromStage.contents[1]] in stages){
+			utility <- utility + [float(informFromStage.contents[0][0]) * float(preference_lightshow) + 
+				float(informFromStage.contents[0][1]) * float(preference_speakers) +
+				float(informFromStage.contents[0][2]) * float(preference_band)
+			];
+			stages <- stages + [informFromStage.contents[1]];
+		}
+		previousTarget <- target;
 		target <- stages[index_of(utility, max(utility))];
 		
 		if(verbose){
@@ -159,7 +188,7 @@ species Person skills: [moving,  fipa]{
 		if (target = watchingAct){
 			target <- nil;
 			if(verbose){
-				write self.name + ':\t staying at stage:\t' + watchingAct;
+				write self.name + ':\t already at target:\t' + watchingAct;
 			}
 		}
 		else{
@@ -167,11 +196,76 @@ species Person skills: [moving,  fipa]{
 			if(verbose){
 				write self.name + ':\t going to stage:\t' + target;
 			}
+			
+//			if(previousTarget != nil){				
+//				do start_conversation to:[previousTarget] performative:'inform' contents:['leaving stage']; // protocol:'fipa-cfp'				
+//			}
+			
+			do start_conversation to:[target] performative:'cfp' contents:['going to stage', self]; // protocol:'fipa-cfp'	
+			
+		}	
+		
+	}
+	
+	reflex read_cfp when: !empty(cfps) {
+		loop p over: cfps {
+			
+			float crowd_utility <- crowd_affinity * float(p.contents[0]) ;			
+			
+			int i <- 0;
+			loop s over: stages{
+				if(s = p.contents[1]){
+					stages <- stages - s;
+					utility <- utility - utility[i];
+				} 
+				i <- i+1;
+			}
+			utility <- utility + [float(p.contents[2][0]) * float(preference_lightshow) + 
+				float(p.contents[2][1]) * float(preference_speakers) +
+				float(p.contents[2][2]) * float(preference_band) +
+				crowd_utility
+			];
+			
+			stages <- stages + [p.contents[1]];
+			
+			
+			if (target = stages[index_of(utility, max(utility))]){
+				if(verbose){
+//					write self.name + ':\t still going to stage:\t' + target;
+				}
+			}
+			else if (watchingAct = stages[index_of(utility, max(utility))]){
+				if(verbose){
+//					write self.name + ':\t staying at stage:\t' + watchingAct;
+				}
+			}
+			else{
+				previousTarget <- target;
+				target <- stages[index_of(utility, max(utility))];
+				if watchingAct != nil{
+					watchingAct <- nil;
+				}
+				if previousTarget != nil{
+					do start_conversation to:[previousTarget] performative:'cfp' contents:['leaving stage', self];		
+					if(verbose){
+						write self.name + "\tleaving stage " + previousTarget + " because of crowd, now going to " + target;
+					}
+				}
+				do start_conversation to:[target] performative:'cfp' contents:['going to stage', self];
+			
+			}
+			
+			
+			
 		}
 	}
 	
+	
+	
+	
+	
 	aspect base {
-		rgb agentColor <- rgb("purple");		
+		rgb agentColor <- rgb(int(255*(0.5 - crowd_affinity)),0,int(255*(0.5 + crowd_affinity)));		
 		draw circle(1) color: agentColor;
 	}
 	
