@@ -39,6 +39,10 @@ species Stage skills: [fipa]{
 	float speaker_quality;
 	float band_quality;
 	
+	float props_quality;
+	float instrument_quality;
+	float vocals_quality;
+	
 	list act;
 	list people_coming;
 	
@@ -54,7 +58,10 @@ species Stage skills: [fipa]{
 		lightshow_quality <- rnd( 0.0, 1.0 );
 		speaker_quality <- rnd( 0.0, 1.0 );
 		band_quality <- rnd( 0.0, 1.0 );
-		act <- [lightshow_quality, speaker_quality, band_quality];
+		props_quality <- rnd( 0.0, 1.0 );
+		instrument_quality <- rnd( 0.0, 1.0 );
+		vocals_quality <- rnd( 0.0, 1.0 );
+		act <- [lightshow_quality, speaker_quality, band_quality, props_quality, instrument_quality, vocals_quality];
 	}
     
     reflex newAct when: (int(time) mod newActEvery = 0) {
@@ -64,7 +71,10 @@ species Stage skills: [fipa]{
 		lightshow_quality <- rnd( 0.0, 1.0 );
 		speaker_quality <- rnd( 0.0, 1.0 );
 		band_quality <- rnd( 0.0, 1.0 );
-		act <- [lightshow_quality, speaker_quality, band_quality];
+		props_quality <- rnd( 0.0, 1.0 );
+		instrument_quality <- rnd( 0.0, 1.0 );
+		vocals_quality <- rnd( 0.0, 1.0 );
+		act <- [lightshow_quality, speaker_quality, band_quality, props_quality, instrument_quality, vocals_quality];
 		if(verbose){
 			write self.name + ': sending inform, start of act';
 		}
@@ -117,6 +127,10 @@ species Person skills: [moving,  fipa]{
 	float preference_speakers;
 	float preference_band;
 	
+	float preference_props;
+	float preference_instruments;
+	float preference_vocals;
+	
 	
 	float crowd_affinity;
 	
@@ -131,6 +145,11 @@ species Person skills: [moving,  fipa]{
 		preference_lightshow <- rnd( 0.0, 1.0 );
 		preference_speakers <- rnd( 0.0, 1.0 );
 		preference_band <- rnd( 0.0, 1.0 );
+		
+		preference_props <- rnd( 0.0, 1.0 );
+		preference_instruments <- rnd( 0.0, 1.0 );
+		preference_vocals <- rnd( 0.0, 1.0 );
+		
 		crowd_affinity <- rnd( -0.5, 0.5 );
 	}
 	
@@ -173,7 +192,10 @@ species Person skills: [moving,  fipa]{
 		if !([informFromStage.contents[1]] in stages){
 			utility <- utility + [float(informFromStage.contents[0][0]) * float(preference_lightshow) + 
 				float(informFromStage.contents[0][1]) * float(preference_speakers) +
-				float(informFromStage.contents[0][2]) * float(preference_band)
+				float(informFromStage.contents[0][2]) * float(preference_band) + 
+				float(informFromStage.contents[0][3]) * float(preference_props) +
+				float(informFromStage.contents[0][4]) * float(preference_instruments) +
+				float(informFromStage.contents[0][5]) * float(preference_vocals) 
 			];
 			stages <- stages + [informFromStage.contents[1]];
 		}
@@ -210,7 +232,7 @@ species Person skills: [moving,  fipa]{
 	reflex read_cfp when: !empty(cfps) {
 		loop p over: cfps {
 			
-			float crowd_utility <- crowd_affinity * float(p.contents[0]) ;			
+			float crowd_utility <- crowd_affinity * float(p.contents[0]) * 2;			
 			
 			int i <- 0;
 			loop s over: stages{
@@ -223,6 +245,9 @@ species Person skills: [moving,  fipa]{
 			utility <- utility + [float(p.contents[2][0]) * float(preference_lightshow) + 
 				float(p.contents[2][1]) * float(preference_speakers) +
 				float(p.contents[2][2]) * float(preference_band) +
+				float(p.contents[2][2]) * float(preference_props) +
+				float(p.contents[2][2]) * float(preference_instruments) +
+				float(p.contents[2][2]) * float(preference_vocals) +
 				crowd_utility
 			];
 			
@@ -265,7 +290,7 @@ species Person skills: [moving,  fipa]{
 	
 	
 	aspect base {
-		rgb agentColor <- rgb(int(255*(0.5 - crowd_affinity)),0,int(255*(0.5 + crowd_affinity)));		
+		rgb agentColor <- rgb(round(255*(0.5 - crowd_affinity)),0,round(255*(0.5 + crowd_affinity)));		
 		draw circle(1) color: agentColor;
 	}
 	
