@@ -43,7 +43,21 @@ global {
 	predicate socialize_food_pr <- new_predicate("socialize during food"); // for desire, intention, belief
 	
 	predicate share_information_pr <- new_predicate("share information") ; // for desire, intention
-	predicate sell_gold_pr <- new_predicate("sell gold") ; // for desire, intention
+	
+	
+	string same_profession_people_pr_name <- "same_profession_people";
+	string date_list_pr_name <- 'date_list';
+	string sugar_list_pr_name <- 'sugar_list';
+	
+	
+	predicate same_profession_people_pr <- new_predicate(same_profession_people_pr_name) ; // for belief
+	
+	
+	predicate fan_chat_at_drink_pr <- new_predicate("fan_chat_at_drink_pr") ; // for desire, intention
+	predicate dance_together_at_drink_pr <- new_predicate("dance_together_at_drink_pr") ; // for desire, intention
+	predicate sing_together_at_drink_pr <- new_predicate("sing_together_at_drink_pr") ; // for desire, intention
+	predicate split_bill_date_at_drink_pr <- new_predicate("split_bill_date_at_drink_pr") ; // for desire, intention
+	predicate pay_whole_bill_date_at_drink_pr <- new_predicate("pay_whole_bill_date_at_drink_pr") ; // for desire, intention
 	
 	
 	emotion joy_music <- new_emotion("joy", satisfy_music_pr);
@@ -128,17 +142,19 @@ species Person skills: [moving, fipa] control:simple_bdi {
     bool is_young <- flip(0.5);
     bool is_female <- flip(0.5);
     
+    
     bool use_personality <- true;
 	float openness <- float(rnd(1)); // open-minded
 	float conscientiousness <- 0.5; //  act with preprations
 	float extroversion <- float(rnd(1)); // extrovert
 	float agreeableness <- float(rnd(1)); // friendly
 	float neurotism <- float(rnd(1)); // calm
-    
+	
+    map<string,float> liking <- [];
 //    bool is_generous <- flip(0.5);
 //    bool is_humble <- flip(0.5);
 	
-	point target;
+	point target_stage;
 	
     bool use_social_architecture <- true;
 	bool use_emotions_architecture <- true;
@@ -226,48 +242,48 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	
 	plan go_to_music intention: satisfy_music_pr {
 		list<point> possible_stages;
-		if (target = nil) {
+		if (target_stage = nil) {
 			possible_stages <- get_beliefs_with_name(music_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			target <- (possible_stages with_min_of (each distance_to self)).location;
+			target_stage <- (possible_stages with_min_of (each distance_to self)).location;
 		}
 		else {
-			do goto target: target ;
-			if (target = location)  {
-				Stage current_stage<- Stage first_with (target = each.location);
+			do goto target: target_stage ;
+			if (target_stage = location)  {
+				Stage current_stage<- Stage first_with (target_stage = each.location);
 				do add_belief(satisfy_music_pr);
-				target <- nil;
+				target_stage <- nil;
 			}
 		}	
 	}
 	
 	plan go_to_drink intention: satisfy_drink_pr {
 		list<point> possible_stages;
-		if (target = nil) {
+		if (target_stage = nil) {
 			possible_stages <- get_beliefs_with_name(drink_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			target <- (possible_stages with_min_of (each distance_to self)).location;
+			target_stage <- (possible_stages with_min_of (each distance_to self)).location;
 		}
 		else {
-			do goto target: target ;
-			if (target = location)  {
-				Stage current_stage<- Stage first_with (target = each.location);
+			do goto target: target_stage ;
+			if (target_stage = location)  {
+				Stage current_stage<- Stage first_with (target_stage = each.location);
 				do add_belief(satisfy_drink_pr);
-				target <- nil;
+				target_stage <- nil;
 			}
 		}	
 	}
 
 	plan go_to_food intention: satisfy_food_pr {
 		list<point> possible_stages;
-		if (target = nil) {
+		if (target_stage = nil) {
 			possible_stages <- get_beliefs_with_name(food_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			target <- (possible_stages with_min_of (each distance_to self)).location;
+			target_stage <- (possible_stages with_min_of (each distance_to self)).location;
 		}
 		else {
-			do goto target: target ;
-			if (target = location)  {
-				Stage current_stage<- Stage first_with (target = each.location);
+			do goto target: target_stage ;
+			if (target_stage = location)  {
+				Stage current_stage<- Stage first_with (target_stage = each.location);
 				do add_belief(satisfy_food_pr);
-				target <- nil;
+				target_stage <- nil;
 			}
 		}	
 	}
@@ -294,16 +310,17 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: other
 			
 			// if mypersonality is this formula, else another formula
-			socialize liking: 1 -  point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism);
+			socialize liking: 1.0 -  (point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism) / 2.0);
+			liking[self.name] <- ((myself.social_link_base where (each.agent = self)) collect each.liking)[0];
 			
 			// job
 			if (self.profession = myself.profession) {
 				//is equivalent to:
-				//	ask myself {
-				//		do add_belief(new_predicate("stage_location_pr_name",["location_value"::myself.location]);
-				//	}
-				focus id: same_profession_people_pr_name var: name;
-				write myself.name + ': ' + " added " + self.name + ' name to my same proffession belief';
+				ask myself {
+					do add_belief(new_predicate(same_profession_people_pr_name,["self_value"::self]));
+				}
+//				focus id: same_profession_people_pr_name var: name;
+				write myself.name + ': ' + " added " + self.name + ' name to my same profession belief';
 				
 				ask myself {
 					//	Myself: other
@@ -312,19 +329,19 @@ species Person skills: [moving, fipa] control:simple_bdi {
 					if (self.extroversion=1.0) {
 						if (self.profession='fan'){
 							write self.name + ': ' + " going to have a fan chat with " + myself.name;
-							do add_subintention(get_current_intention(),fan_chat_at_drink_intent, true);
+							do add_subintention(get_current_intention(),fan_chat_at_drink_pr, true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:fan_chat_pr, strength: 5.0);
 						}
 						if (self.profession='dancer'){
 							write self.name + ': ' + " going to dance with " + myself.name;
-							do add_subintention(get_current_intention(),dance_together_at_drink_intent, true);
+							do add_subintention(get_current_intention(),dance_together_at_drink_pr, true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:dance_together_pr, strength: 5.0);
 						}
 						if (self.profession='singer'){
 							write self.name + ': ' + " going to sing with " + myself.name;
-							do add_subintention(get_current_intention(),sing_together_at_drink_intent, true);
+							do add_subintention(get_current_intention(),sing_together_at_drink_pr, true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:sing_together_pr, strength: 5.0);
 						}
@@ -342,38 +359,40 @@ species Person skills: [moving, fipa] control:simple_bdi {
 					//	Self: I
 
 					if (self.extroversion=1.0) {
-						if (self.profession='fan'){
-							write self.name + ': ' + " going to have a fan chat with " + myself.name;
-							do add_subintention(get_current_intention(),fan_chat_at_drink_intent, true);
+						if (self.liking[myself.name] > 0.5 ){
+							write self.name + ': ' + ",after drink, intention to have a split-bill date with " + myself.name;
+							do add_subintention(get_current_intention(), split_bill_date_at_drink_pr, true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:fan_chat_pr, strength: 5.0);
 						}
-						if (self.profession='dancer'){
-							write self.name + ': ' + " going to dance with " + myself.name;
-							do add_subintention(get_current_intention(),dance_together_at_drink_intent, true);
-							do current_intention_on_hold();
-//							do add_desire(predicate:dance_together_pr, strength: 5.0);
-						}
-						if (self.profession='singer'){
-							write self.name + ': ' + " going to sing with " + myself.name;
-							do add_subintention(get_current_intention(),sing_together_at_drink_intent, true);
-							do current_intention_on_hold();
-//							do add_desire(predicate:sing_together_pr, strength: 5.0);
-						}
 					}
+				}	
 			}
 			
-			// sugar dady/mom list !!
+			// sugar date list !!
 			if (myself.is_young != self.is_young and myself.is_female != self.is_female){
 				focus id: sugar_list_pr_name var: name;
 				write myself.name + ': ' + " added " + self.name + ' name to my sugar list belief';
+				ask myself {
+					//	Myself: other
+					//	Self: I
+
+					if (self.extroversion=1.0) {
+						if (self.liking[myself.name] > 0.5 ){
+							write self.name + ': ' + ",after drink, intention to have a pay-whole-bill date with " + myself.name;
+							do add_subintention(get_current_intention(), pay_whole_bill_date_at_drink_pr, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:fan_chat_pr, strength: 5.0);
+						}
+					}
+				}	
 			}
 		}
 	}
 
-	rule belief: socialize_pr new_desire: socialize_pr strength: 2.5;
+//	rule belief: socialize_pr new_desire: socialize_pr strength: 2.5;
 
-	plan stay_at_stage intention: socialize_pr {
+	plan stay_at_stage intention: socialize_drink_pr {
 		// wait 10 sec, then flip your needs again
 		
 //		do goto target: the_market ;
@@ -382,6 +401,42 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //			do remove_intention(sell_gold_pr, true);
 //			gold_sold <- gold_sold + 1;
 //		}
+	}
+	
+	
+	plan fan_chat_at_drink intention: fan_chat_at_drink_pr instantaneous: true {
+		list possible_chat_targets <- get_beliefs_with_name(same_profession_people_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+		Person target_chat <- temp_list[0];
+		// remove the target belief 
+		ask target_chat {
+			//	Myself: I
+			//	Self: other
+			if (self.extroversion=1.0) {
+				write myself.name + ': ' + " fan chat request with " + myself.name + ' accepted';
+				do remove_intention(fan_chat_at_drink_pr, true); 
+//				do remove_intention(socialize_drink_pr, true); 
+			}
+			else {
+				write myself.name + ': ' + " fan chat request with " + myself.name + ' rejected, try with another one';
+				do remove_intention(fan_chat_at_drink_pr, true); 
+			}
+		}
+	}
+	
+	plan dance_together_at_drink intention: dance_together_at_drink_pr instantaneous: true {
+		
+	}
+	
+	plan sing_together_at_drink intention: sing_together_at_drink_pr instantaneous: true {
+		
+	}
+	
+	plan split_bill_date_at_drink intention: split_bill_date_at_drink_pr instantaneous: true {
+		
+	}
+	
+	plan pay_whole_bill_date_at_drink intention: pay_whole_bill_date_at_drink_pr instantaneous: true {
+		
 	}
 	
 	plan share_information_to_friends intention: share_information_pr instantaneous: true {
