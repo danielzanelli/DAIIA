@@ -38,7 +38,9 @@ global {
 	predicate satisfy_drink_pr <- new_predicate("satisfy drink"); // for desire, intention, belief
 	predicate satisfy_food_pr <- new_predicate("satisfy food"); // for desire, intention, belief
 	
-	predicate socialize_pr <- new_predicate("socialize with at least another one"); // for desire, intention, belief
+	predicate socialize_music_pr <- new_predicate("socialize during music"); // for desire, intention, belief
+	predicate socialize_drink_pr <- new_predicate("socialize during drink"); // for desire, intention, belief
+	predicate socialize_food_pr <- new_predicate("socialize during food"); // for desire, intention, belief
 	
 	predicate share_information_pr <- new_predicate("share information") ; // for desire, intention
 	predicate sell_gold_pr <- new_predicate("sell gold") ; // for desire, intention
@@ -98,8 +100,6 @@ species Stage {
     bool has_music <- flip(0.5);
     bool has_drink <- flip(1.0);
     bool has_food <- flip(0.5);
-    bool is_young <- flip(0.5);
-    bool is_female <- flip(0.5);
     
     aspect default {
         draw triangle(700) color: #yellow border: #black;    
@@ -119,24 +119,29 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	float speed <- 2#km/#h;
 	rgb my_color<-rnd_color(255);
 	
-	int nb_crowd_tolerance <- 10;
-	
 	bool need_music <- flip(0.5);
     bool need_drink <- flip(1.0);
     bool need_food <- flip(0.5);
+    
+    string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
+    
+    bool is_young <- flip(0.5);
+    bool is_female <- flip(0.5);
+    
+    bool use_personality <- true;
+	float openness <- float(rnd(1)); // open-minded
+	float conscientiousness <- 0.5; //  act with preprations
+	float extroversion <- float(rnd(1)); // extrovert
+	float agreeableness <- float(rnd(1)); // friendly
+	float neurotism <- float(rnd(1)); // calm
+    
+//    bool is_generous <- flip(0.5);
+//    bool is_humble <- flip(0.5);
 	
 	point target;
-//	int gold_sold;
 	
     bool use_social_architecture <- true;
 	bool use_emotions_architecture <- true;
-	
-	bool use_personality <- true;
-//	float openness <- 0.1;
-//	float conscientiousness <- 0.2;
-//	float extroversion <- 0.3;
-//	float agreeableness <- 0.4;
-//	float neurotism <- 0.5;
 	
 	init {
 		do add_desire(find_prefered_stage_pr);
@@ -215,10 +220,6 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	rule belief: drink_location_pr new_desire: satisfy_drink_pr strength: 4.0;
 	rule belief: food_location_pr new_desire: satisfy_food_pr strength: 3.0;
 	
-	rule belief: satisfy_music_pr new_desire: socialize_pr strength: 2.5;
-	rule belief: satisfy_drink_pr new_desire: socialize_pr strength: 2.5;
-	rule belief: satisfy_food_pr new_desire: socialize_pr strength: 2.5;
-	
 	plan lets_wander intention:find_prefered_stage_pr finished_when: has_desire(satisfy_music_pr){
 		do wander;
 	}
@@ -270,17 +271,63 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			}
 		}	
 	}
+	
+	rule belief: satisfy_music_pr new_desire: socialize_music_pr strength: 2.5;
+	rule belief: satisfy_drink_pr new_desire: socialize_drink_pr strength: 2.5;
+	rule belief: satisfy_food_pr new_desire: socialize_food_pr strength: 2.5;
 
+//	string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
+//
+//	bool is_young <- flip(0.5);
+//	bool is_female <- flip(0.5);
+//
+//	bool use_personality <- true;
+//	float openness <- float(rnd(1)); // open-minded
+//	float conscientiousness <- 0.5; //  act with preprations
+//	float extroversion <- float(rnd(1)); // extrovert
+//	float agreeableness <- float(rnd(1)); // friendly
+//	float neurotism <- float(rnd(1)); // calm
 
 	perceive target:Person in:view_dist {
-		if is_current_intention(socialize_pr) {
+		if is_current_intention(socialize_drink_pr) {
+			// job
+			if (self.profession = myself.profession) {
+				//is equivalent to:
+				//	ask myself {
+				//		do add_belief(new_predicate("stage_location_pr_name",["location_value"::myself.location]);
+				//	}
+				focus id: same_profession_people_pr_name var: name;
+				write myself.name + ': ' + " added " + self.name + ' name to my same proffession belief';
+				
+				ask myself {
+					//	check if the emotion is in the belief base.
+					//	Myself: Stage
+					//	Self: Person
+
+					if (self.extroversion=1.0) {
+						if (self.profession='fan'){
+							write self.name + ': ' + " going to fan_chat with " + myself.name;
+							do add_desire(predicate:chat_pr, strength: 5.0);
+						}
+					}
+					do remove_intention(find_prefered_stage_pr, false);
+				}
+			}
+			
+			// date list !!
+			if (self.is_young = myself.is_young and self.is_female != myself.is_female){
+				focus id: date_list_pr_name var: name;
+				write myself.name + ': ' + " added " + self.name + ' name to my date list belief';
+			}
 			// if mypersonality is this formula, else another formula
 			socialize liking: 1 -  point(my_color.red, my_color.green, my_color.blue) distance_to point(myself.my_color.red, myself.my_color.green, myself.my_color.blue) / ( 255);
-			
 		}
 	}
 
+	rule belief: socialize_pr new_desire: socialize_pr strength: 2.5;
+
 	plan stay_at_stage intention: socialize_pr {
+		// wait 10 sec, then flip your needs again
 		
 //		do goto target: the_market ;
 //		if (the_market.location = location)  {
