@@ -1,7 +1,7 @@
 /**
 * Name: FinalAssignment
 * Based on the internal skeleton template. 
-* Author: Daniel, Mehdi
+* Author: Mehdi, Daniel
 * Tags: 
 */
 
@@ -290,6 +290,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 
 	perceive target:Person in:view_dist {
 		if is_current_intention(socialize_drink_pr) {
+			//	Myself: I
+			//	Self: other
+			
+			// if mypersonality is this formula, else another formula
+			socialize liking: 1 -  point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism);
+			
 			// job
 			if (self.profession = myself.profession) {
 				//is equivalent to:
@@ -300,27 +306,68 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				write myself.name + ': ' + " added " + self.name + ' name to my same proffession belief';
 				
 				ask myself {
-					//	check if the emotion is in the belief base.
-					//	Myself: Stage
-					//	Self: Person
+					//	Myself: other
+					//	Self: I
 
 					if (self.extroversion=1.0) {
 						if (self.profession='fan'){
-							write self.name + ': ' + " going to fan_chat with " + myself.name;
-							do add_desire(predicate:chat_pr, strength: 5.0);
+							write self.name + ': ' + " going to have a fan chat with " + myself.name;
+							do add_subintention(get_current_intention(),fan_chat_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:fan_chat_pr, strength: 5.0);
+						}
+						if (self.profession='dancer'){
+							write self.name + ': ' + " going to dance with " + myself.name;
+							do add_subintention(get_current_intention(),dance_together_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:dance_together_pr, strength: 5.0);
+						}
+						if (self.profession='singer'){
+							write self.name + ': ' + " going to sing with " + myself.name;
+							do add_subintention(get_current_intention(),sing_together_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:sing_together_pr, strength: 5.0);
 						}
 					}
-					do remove_intention(find_prefered_stage_pr, false);
+//					do remove_intention(find_prefered_stage_pr, false);
 				}
 			}
 			
-			// date list !!
-			if (self.is_young = myself.is_young and self.is_female != myself.is_female){
+			// date list
+			if (myself.is_young = self.is_young and myself.is_female != self.is_female){
 				focus id: date_list_pr_name var: name;
 				write myself.name + ': ' + " added " + self.name + ' name to my date list belief';
+				ask myself {
+					//	Myself: other
+					//	Self: I
+
+					if (self.extroversion=1.0) {
+						if (self.profession='fan'){
+							write self.name + ': ' + " going to have a fan chat with " + myself.name;
+							do add_subintention(get_current_intention(),fan_chat_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:fan_chat_pr, strength: 5.0);
+						}
+						if (self.profession='dancer'){
+							write self.name + ': ' + " going to dance with " + myself.name;
+							do add_subintention(get_current_intention(),dance_together_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:dance_together_pr, strength: 5.0);
+						}
+						if (self.profession='singer'){
+							write self.name + ': ' + " going to sing with " + myself.name;
+							do add_subintention(get_current_intention(),sing_together_at_drink_intent, true);
+							do current_intention_on_hold();
+//							do add_desire(predicate:sing_together_pr, strength: 5.0);
+						}
+					}
 			}
-			// if mypersonality is this formula, else another formula
-			socialize liking: 1 -  point(my_color.red, my_color.green, my_color.blue) distance_to point(myself.my_color.red, myself.my_color.green, myself.my_color.blue) / ( 255);
+			
+			// sugar dady/mom list !!
+			if (myself.is_young != self.is_young and myself.is_female != self.is_female){
+				focus id: sugar_list_pr_name var: name;
+				write myself.name + ': ' + " added " + self.name + ' name to my sugar list belief';
+			}
 		}
 	}
 
