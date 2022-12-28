@@ -8,7 +8,7 @@
 model FinalAssignment
 
 global {
-	int nb_stages <- 5;
+	int nb_stages <- 10;
 	int nb_ppl <- 10;
 //	market the_market;
 	
@@ -48,7 +48,7 @@ global {
 	emotion joy_drink <- new_emotion("joy", satisfy_drink_pr);
 	emotion joy_food <- new_emotion("joy", satisfy_food_pr);
 	
-	float inequality <- 0.0 update:standard_deviation(Person collect each.gold_sold);
+//	float inequality <- 0.0 update:standard_deviation(Person collect each.gold_sold);
 	
 	geometry shape <- square(20 #km);
 	init
@@ -96,7 +96,7 @@ global {
 
 species Stage {
     bool has_music <- flip(0.5);
-    bool has_drink <- flip(0.5);
+    bool has_drink <- flip(1.0);
     bool has_food <- flip(0.5);
     bool is_young <- flip(0.5);
     bool is_female <- flip(0.5);
@@ -113,7 +113,7 @@ species Stage {
 //	}
 //}
 
-species Person skills: [moving] control:simple_bdi {
+species Person skills: [moving, fipa] control:simple_bdi {
 	
 	float view_dist<-1000.0;
 	float speed <- 2#km/#h;
@@ -122,7 +122,7 @@ species Person skills: [moving] control:simple_bdi {
 	int nb_crowd_tolerance <- 10;
 	
 	bool need_music <- flip(0.5);
-    bool need_drink <- flip(0.5);
+    bool need_drink <- flip(1.0);
     bool need_food <- flip(0.5);
 	
 	point target;
@@ -142,13 +142,6 @@ species Person skills: [moving] control:simple_bdi {
 		do add_desire(find_prefered_stage_pr);
 	}
 	
-	perceive target:Person in:view_dist {
-		if is_current_intention(socialize_pr) {
-			// if mypersonality is this formula, else another formula
-			socialize liking: 1 -  point(my_color.red, my_color.green, my_color.blue) distance_to point(myself.my_color.red, myself.my_color.green, myself.my_color.blue) / ( 255);
-			
-		}
-	}
 	
 	// detect the concerts that are not full (i.e. the quantity of prticipants
 	// is lower than capacity) at a distance lower or equal to view_dist
@@ -166,6 +159,7 @@ species Person skills: [moving] control:simple_bdi {
 			//		do add_belief(new_predicate("stage_location_pr_name",["location_value"::myself.location]);
 			//	}
 			focus id: music_location_pr_name var: location;
+			write myself.name + ': ' + " added " + self.name + ' location to my music belief';
 			
 			//	the instructions written in the statement are executed in the
 			//	context of the perceived agents. It is for that, that we have to
@@ -184,6 +178,7 @@ species Person skills: [moving] control:simple_bdi {
 		}
 		if (self.has_drink and myself.need_drink) {
 			focus id: drink_location_pr_name var: location;
+			write myself.name + ': ' + " added " + self.name + ' location to my drink belief';
 			
 			ask myself {
 	//			check if the emotion is in the belief base.
@@ -198,6 +193,7 @@ species Person skills: [moving] control:simple_bdi {
 		}
 		if (self.has_food and myself.need_food) {
 			focus id: food_location_pr_name var: location;
+			write myself.name + ': ' + " added " + self.name + ' location to my food belief';
 			
 			ask myself {
 	//			check if the emotion is in the belief base.
@@ -220,71 +216,103 @@ species Person skills: [moving] control:simple_bdi {
 	rule belief: food_location_pr new_desire: satisfy_food_pr strength: 3.0;
 	
 	rule belief: satisfy_music_pr new_desire: socialize_pr strength: 2.5;
+	rule belief: satisfy_drink_pr new_desire: socialize_pr strength: 2.5;
+	rule belief: satisfy_food_pr new_desire: socialize_pr strength: 2.5;
 	
 	plan lets_wander intention:find_prefered_stage_pr finished_when: has_desire(satisfy_music_pr){
 		do wander;
 	}
 	
-	plan go_to_stage intention:(satisfy_music_pr or satisfy_drink_pr or satisfy_food_pr)  {
+	plan go_to_music intention: satisfy_music_pr {
 		list<point> possible_stages;
 		if (target = nil) {
-			if is_current_intention(satisfy_music_pr) {
-				possible_stages <- get_beliefs_with_name(music_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			}
-			if is_current_intention(satisfy_drink_pr) {
-				possible_stages <- get_beliefs_with_name(drink_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			}
-			if is_current_intention(satisfy_food_pr) {
-				possible_stages <- get_beliefs_with_name(food_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
-			}
+			possible_stages <- get_beliefs_with_name(music_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
 			target <- (possible_stages with_min_of (each distance_to self)).location;
 		}
 		else {
 			do goto target: target ;
 			if (target = location)  {
 				Stage current_stage<- Stage first_with (target = each.location);
-				if is_current_intention(satisfy_music_pr) {
-					do add_belief(satisfy_music_pr);
-				}
-				if is_current_intention(satisfy_drink_pr) {
-					do add_belief(satisfy_drink_pr);
-				}
-				if is_current_intention(satisfy_food_pr) {
-					do add_belief(satisfy_food_pr);
-				}
+				do add_belief(satisfy_music_pr);
 				target <- nil;
 			}
 		}	
 	}
 	
-//	plan return_to_base intention: sell_gold_pr {
+	plan go_to_drink intention: satisfy_drink_pr {
+		list<point> possible_stages;
+		if (target = nil) {
+			possible_stages <- get_beliefs_with_name(drink_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
+			target <- (possible_stages with_min_of (each distance_to self)).location;
+		}
+		else {
+			do goto target: target ;
+			if (target = location)  {
+				Stage current_stage<- Stage first_with (target = each.location);
+				do add_belief(satisfy_drink_pr);
+				target <- nil;
+			}
+		}	
+	}
+
+	plan go_to_food intention: satisfy_food_pr {
+		list<point> possible_stages;
+		if (target = nil) {
+			possible_stages <- get_beliefs_with_name(food_location_pr_name) collect (point(get_predicate(mental_state (each)).values["location_value"]));
+			target <- (possible_stages with_min_of (each distance_to self)).location;
+		}
+		else {
+			do goto target: target ;
+			if (target = location)  {
+				Stage current_stage<- Stage first_with (target = each.location);
+				do add_belief(satisfy_food_pr);
+				target <- nil;
+			}
+		}	
+	}
+
+
+	perceive target:Person in:view_dist {
+		if is_current_intention(socialize_pr) {
+			// if mypersonality is this formula, else another formula
+			socialize liking: 1 -  point(my_color.red, my_color.green, my_color.blue) distance_to point(myself.my_color.red, myself.my_color.green, myself.my_color.blue) / ( 255);
+			
+		}
+	}
+
+	plan stay_at_stage intention: socialize_pr {
+		
 //		do goto target: the_market ;
 //		if (the_market.location = location)  {
 //			do remove_belief(satisfy_music_pr);
 //			do remove_intention(sell_gold_pr, true);
 //			gold_sold <- gold_sold + 1;
 //		}
-//	}
+	}
 	
-	plan share_information_to_friends intention: share_information_pr instantaneous: true{
+	plan share_information_to_friends intention: share_information_pr instantaneous: true {
 		list<Person> my_friends <- list<Person>((social_link_base where (each.liking > 0)) collect each.agent);
-		loop known_gold_mine over: get_beliefs_with_name(music_location_pr_name) {
-			ask my_friends {
-				do add_directly_belief(known_gold_mine);
+		if (!empty(my_friends)) {
+			loop known_gold_mine over: get_beliefs_with_name(music_location_pr_name) {
+				write self.name + ': sharing this (' + known_gold_mine + ') with my friends ';
+					do start_conversation to:my_friends performative:'inform' contents:known_gold_mine;
+	//			ask my_friends {
+	//				do add_directly_belief(known_gold_mine);
+	//			}
 			}
 		}
-//		loop known_empty_gold_mine over: get_beliefs_with_name(full_stage_location_pr_name) {
-//			ask my_friends {
-//				do add_directly_belief(known_empty_gold_mine);
-//			}
-//		}
-		
 		do remove_intention(share_information_pr, true); 
+	}
+	
+	reflex write_inform_msg when: !empty(informs) {
+		message informFromInitiator <- (informs at 0);
+		do add_directly_belief(informFromInitiator.contents[0]);
+		write self.name + ': received inform msg, ' + informFromInitiator.contents[0];
 	}
 
 	aspect default {
-	    draw circle(200) color: my_color border: #black depth: gold_sold;
-	    draw circle(view_dist) color: my_color border: #black depth: gold_sold wireframe: true;
+	    draw circle(200) color: my_color border: #black depth: 10;
+	    draw circle(view_dist) color: my_color border: #black depth: 20 wireframe: true;
 	}
 }
 
@@ -300,6 +328,7 @@ species socialLinkRepresentation{
 
 
 experiment gui_experiment type: gui {
+	
 	output {
 		display map type: opengl {
 //			species market;
@@ -311,11 +340,11 @@ experiment gui_experiment type: gui {
         	species socialLinkRepresentation aspect: base;
     	}
 
-		display chart {
-			chart "Money" type: series {
-				datalist legend: Person accumulate each.name value: Person accumulate each.gold_sold color: Person accumulate each.my_color;
-			}
-		}
+//		display chart {
+//			chart "Money" type: series {
+//				datalist legend: Person accumulate each.name value: Person accumulate each.gold_sold color: Person accumulate each.my_color;
+//			}
+//		}
 		
 	}
 }
