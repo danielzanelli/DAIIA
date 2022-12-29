@@ -15,6 +15,12 @@ global {
 	float speed <- 2#km/#h;
 	float amplitude <- 120.0;
 	
+	int music_alarm <- 43;
+	int drink_alarm <- 23;
+	int food_alarm <- 31;
+	
+	int socialize_wait <- 20;
+	
 //	market the_market;
 	
 	string music_location_pr_name <- "music_at_location";
@@ -193,17 +199,20 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		need_drink <- need_drink + 1;
 		need_food <- need_food + 1;
 		
-		if need_music = 31 {
+		if need_music = music_alarm {
 			do add_belief(music_need_pr);
 			do remove_intention(no_need_wander_pr, false);
 			write name + ': now need music';
 		}
-		if need_drink = 10 {
+		
+		
+		
+		if need_drink = drink_alarm {
 			do add_belief(drink_need_pr);
 			do remove_intention(no_need_wander_pr, false);
 			write name + ': now need drink';
 		}
-		if need_food = 23 {
+		if need_food = food_alarm {
 			do add_belief(food_need_pr);
 			do remove_intention(no_need_wander_pr, false);
 			write name + ': now need food';
@@ -380,9 +389,9 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	rule belief: satisfy_drink_pr remove_belief:drink_need_pr remove_desire: satisfy_drink_pr;
 	rule belief: satisfy_food_pr remove_belief: food_need_pr remove_desire: satisfy_food_pr;
 	
-	rule belief: satisfy_music_pr new_desire: socialize_pr strength: 5 lifetime: 30;
-	rule belief: satisfy_drink_pr new_desire: socialize_pr strength: 5 lifetime: 30;
-	rule belief: satisfy_food_pr new_desire: socialize_pr strength: 5 lifetime: 30;
+	rule belief: satisfy_music_pr new_desire: socialize_pr strength: 5 lifetime: socialize_wait;
+	rule belief: satisfy_drink_pr new_desire: socialize_pr strength: 5 lifetime: socialize_wait;
+	rule belief: satisfy_food_pr new_desire: socialize_pr strength: 5 lifetime: socialize_wait;
 
 //	string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
 //
@@ -506,25 +515,21 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		list temp <- get_beliefs_with_name('satisfy_drink');
 		if not empty(temp) {
 			do remove_belief(satisfy_drink_pr);
+			need_drink <- 0;
 		}
 		
 		temp <- get_beliefs_with_name('satisfy_food');
 		if not empty(temp) {
 			do remove_belief(satisfy_food_pr);
+			need_food <- 0;
 		}
 		
 		temp <- get_beliefs_with_name('satisfy_music');
 		if not empty(temp) {
 			do remove_belief(satisfy_music_pr);
+			need_music <- 0;
 		}
-//		if (need_music > 31) {
-//			need_music <- 0;
-//			do remove_belief(satisfy_music_pr);
-//			need_drink <- 0;
-//			do remove_belief(satisfy_drink_pr);
-//			need_food <- 0;
-//			do remove_belief(satisfy_food_pr);
-//		}
+
 // wait 10 sec, then flip your needs again
 		
 //		do goto target: the_market ;
@@ -719,7 +724,16 @@ species socialLinkRepresentation{
 
 
 experiment gui_experiment type: gui {
-	
+	parameter "nb_ppl" category: "Agents" var:nb_ppl;
+	parameter "nb_stages" category: "Agents" var:nb_stages;
+	parameter "view_dist" var:view_dist;
+	parameter "speed" var:speed;	
+	parameter "amplitude" var:amplitude;	
+	parameter "music_alarm" var:music_alarm;
+	parameter "drink_alarm" var:drink_alarm;
+	parameter "food_alarm" var:food_alarm;
+	parameter "socialize_wait" var:socialize_wait;
+
 	output {
 		display map type: opengl {
 //			species market;
