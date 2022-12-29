@@ -20,6 +20,7 @@ global {
 	int food_alarm <- 31;
 	
 	int socialize_wait <- 20;
+	float liking_share_threshold <- 0.0;
 	
 //	market the_market;
 	
@@ -164,7 +165,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
     int need_drink <- 0;
     int need_food <- 0;
     
-    string profession <- sample(['fan', 'fan', 'fan'],1,false)[0];
+    string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
     
     bool is_young <- flip(0.5);
     bool is_female <- flip(0.0);
@@ -173,7 +174,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
     bool use_personality <- true;
 	float openness <- float(rnd(1)); // open-minded
 	float conscientiousness <- 0.5; //  act with preprations
-	float extroversion <- 1.0; //float(rnd(1)); // extrovert
+	float extroversion <- float(rnd(1)); // extrovert
 	float agreeableness <- float(rnd(1)); // friendly
 	float neurotism <- float(rnd(1)); // calm
 	
@@ -247,10 +248,10 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				//	check if the emotion is in the belief base.
 				//	Myself: Stage
 				//	Self: Person
-				if (has_emotion(joy_music)) {
-					write self.name + ': ' + " enjoying the music in " + myself.name;
-					do add_desire(predicate:share_information_pr, strength: 6.0);
-				}
+//				if (has_emotion(joy_music)) {
+//					write self.name + ': ' + " enjoying the music in " + myself.name;
+//					do add_desire(predicate:share_information_pr, strength: 6.0);
+//				}
 				do remove_intention(wander_music_pr, true);
 			}
 		}
@@ -277,10 +278,10 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	//			check if the emotion is in the belief base.
 	//			Myself: Stage
 	//			Self: Person
-				if (has_emotion(joy_food)) {
-					write self.name + ': ' + " enjoying the food in " + myself.name;
-					do add_desire(predicate:share_information_pr, strength: 6.0);
-				}
+//				if (has_emotion(joy_food)) {
+//					write self.name + ': ' + " enjoying the food in " + myself.name;
+//					do add_desire(predicate:share_information_pr, strength: 6.0);
+//				}
 				do remove_intention(wander_food_pr, true);
 			}
 		}
@@ -687,7 +688,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	}
 	
 	plan share_information_to_friends intention: share_information_pr instantaneous: true {
-		list<Person> my_friends <- list<Person>((social_link_base where (each.liking > 0)) collect each.agent);
+		list<Person> my_friends <- list<Person>((social_link_base where (each.liking > liking_share_threshold)) collect each.agent);
 		if (!empty(my_friends)) {
 			loop known_gold_mine over: get_beliefs_with_name(music_location_pr_name) {
 				write self.name + ': sharing this (' + known_gold_mine + ') with my friends ';
@@ -733,6 +734,7 @@ experiment gui_experiment type: gui {
 	parameter "drink_alarm" var:drink_alarm;
 	parameter "food_alarm" var:food_alarm;
 	parameter "socialize_wait" var:socialize_wait;
+	parameter "liking_share_threshold" var:liking_share_threshold min:-1.0 max:1.0 ;
 
 	output {
 		display map type: opengl {
