@@ -60,13 +60,15 @@ global {
 	
 	
 	predicate same_profession_people_pr <- new_predicate(same_profession_people_pr_name) ; // for belief
+	predicate date_list_pr <- new_predicate(date_list_pr_name) ; // for belief
+	predicate sugar_list_pr <- new_predicate(sugar_list_pr_name) ; // for belief
 	
 	
-	predicate fan_chat_pr <- new_predicate("fan_chat_pr") ; // for desire, intention
-	predicate dance_together_pr <- new_predicate("dance_together_pr") ; // for desire, intention
-	predicate sing_together_pr <- new_predicate("sing_together_pr") ; // for desire, intention
-	predicate split_bill_date_pr <- new_predicate("split_bill_date_pr") ; // for desire, intention
-	predicate pay_whole_bill_date_pr <- new_predicate("pay_whole_bill_date_pr") ; // for desire, intention
+	predicate fan_chat_pr <- new_predicate("fan_chat") ; // for desire, intention
+	predicate dance_together_pr <- new_predicate("dance_together") ; // for desire, intention
+	predicate sing_together_pr <- new_predicate("sing_together") ; // for desire, intention
+	predicate split_bill_date_pr <- new_predicate("split_bill_date") ; // for desire, intention
+	predicate pay_whole_bill_date_pr <- new_predicate("pay_whole_bill_date") ; // for desire, intention
 	
 	
 	emotion joy_music <- new_emotion("joy", satisfy_music_pr);
@@ -422,19 +424,19 @@ species Person skills: [moving, fipa] control:simple_bdi {
 					if (self.extroversion=1.0) {
 						if (self.profession='fan'){
 							write self.name + ': ' + " going to ask for a fan chat with " + myself.name;
-							do add_subintention(get_current_intention(),new_predicate("fan_chat_pr", myself), true);
+							do add_subintention(get_current_intention(),new_predicate("fan_chat", myself), true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:fan_chat_pr, strength: 5.0);
 						}
 						if (self.profession='dancer'){
 							write self.name + ': ' + " going to ask for a dance with " + myself.name;
-							do add_subintention(get_current_intention(),dance_together_pr, true);
+							do add_subintention(get_current_intention(),new_predicate("dance_together", myself), true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:dance_together_pr, strength: 5.0);
 						}
 						if (self.profession='singer'){
 							write self.name + ': ' + " going to ask for a sing with " + myself.name;
-							do add_subintention(get_current_intention(),sing_together_pr, true);
+							do add_subintention(get_current_intention(),new_predicate("sing_together", myself), true);
 							do current_intention_on_hold();
 //							do add_desire(predicate:sing_together_pr, strength: 5.0);
 						}
@@ -445,8 +447,15 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			
 			// date list
 			if (myself.is_young = self.is_young and myself.is_female != self.is_female){
-				focus id: date_list_pr_name var: name;
+				ask myself {
+					//	Myself: other
+					//	Self: I
+					do add_belief(new_predicate(date_list_pr_name,["self_value"::myself]));
+				}
+//				focus id: date_list_pr_name var: name;
+				
 				write myself.name + ': ' + " added " + self.name + ' name to my date list belief';
+				
 				ask myself {
 					//	Myself: other
 					//	Self: I
@@ -464,8 +473,15 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			
 			// sugar date list !!
 			if (myself.is_young != self.is_young and myself.is_female != self.is_female){
-				focus id: sugar_list_pr_name var: name;
+				ask myself {
+					//	Myself: other
+					//	Self: I
+					do add_belief(new_predicate(sugar_list_pr_name,["self_value"::myself]));
+				}
+//				focus id: sugar_list_pr_name var: name;
+				
 				write myself.name + ': ' + " added " + self.name + ' name to my sugar list belief';
+				
 				ask myself {
 					//	Myself: other
 					//	Self: I
@@ -522,7 +538,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	
 	plan fan_chat intention: fan_chat_pr {
 		list<Person> all_chat_targets <- get_beliefs_with_name(same_profession_people_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
-		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
+//		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
 //		list<Person> already_met <- get_beliefs_with_name(same_profession_people_met_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
 //		list<Person> new_chat_targets <- all_chat_targets - already_met;
 		Person target_chat <- all_chat_targets[0];
@@ -543,25 +559,126 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			}
 			else {
 				write myself.name + ': ' + " fan chat request with " + self.name + ' rejected, try with another one';
-				do remove_intention(fan_chat_pr, true); 
+				do remove_belief(same_profession_people_pr);
+				do remove_intention(fan_chat_pr, true);
 			}
 		}
 	}
 	
 	plan dance_together intention: dance_together_pr {
-		
+		list<Person> all_chat_targets <- get_beliefs_with_name(same_profession_people_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
+//		list<Person> already_met <- get_beliefs_with_name(same_profession_people_met_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		list<Person> new_chat_targets <- all_chat_targets - already_met;
+		Person target_chat <- all_chat_targets[0];
+		// remove the target belief 
+		ask target_chat {
+			//	Myself: I
+			//	Self: target
+			if (self.extroversion=1.0) {
+				write myself.name + ': ' + " dance request with " + self.name + ' accepted and finished';
+				ask myself {
+					do remove_belief(same_profession_people_pr);
+					do remove_intention(dance_together_pr, true);
+					do remove_intention(socialize_pr, true);
+				}
+				do remove_belief(same_profession_people_pr);
+				do remove_intention(dance_together_pr, true); 
+				do remove_intention(socialize_pr, true);
+			}
+			else {
+				write myself.name + ': ' + " dance request with " + self.name + ' rejected, try with another one';
+				do remove_belief(same_profession_people_pr);
+				do remove_intention(dance_together_pr, true); 
+			}
+		}
 	}
 	
 	plan sing_together intention: sing_together_pr {
-		
+		list<Person> all_chat_targets <- get_beliefs_with_name(same_profession_people_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
+//		list<Person> already_met <- get_beliefs_with_name(same_profession_people_met_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		list<Person> new_chat_targets <- all_chat_targets - already_met;
+		Person target_chat <- all_chat_targets[0];
+		// remove the target belief 
+		ask target_chat {
+			//	Myself: I
+			//	Self: target
+			if (self.extroversion=1.0) {
+				write myself.name + ': ' + " sing request with " + self.name + ' accepted and finished';
+				ask myself {
+					do remove_belief(same_profession_people_pr);
+					do remove_intention(sing_together_pr, true);
+					do remove_intention(socialize_pr, true);
+				}
+				do remove_belief(same_profession_people_pr);
+				do remove_intention(sing_together_pr, true); 
+				do remove_intention(socialize_pr, true);
+			}
+			else {
+				write myself.name + ': ' + " sing request with " + self.name + ' rejected, try with another one';
+				do remove_belief(same_profession_people_pr);
+				do remove_intention(sing_together_pr, true); 
+			}
+		}
 	}
 	
 	plan split_bill_date intention: split_bill_date_pr {
-		
+		list<Person> all_chat_targets <- get_beliefs_with_name(date_list_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
+//		list<Person> already_met <- get_beliefs_with_name(same_profession_people_met_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		list<Person> new_chat_targets <- all_chat_targets - already_met;
+		Person target_chat <- all_chat_targets[0];
+		// remove the target belief 
+		ask target_chat {
+			//	Myself: I
+			//	Self: target
+			if (self.extroversion=1.0) {
+				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
+				ask myself {
+					do remove_belief(date_list_pr);
+					do remove_intention(split_bill_date_pr, true);
+					do remove_intention(socialize_pr, true);
+				}
+				do remove_belief(date_list_pr);
+				do remove_intention(split_bill_date_pr, true); 
+				do remove_intention(socialize_pr, true);
+			}
+			else {
+				write myself.name + ': ' + " split-bill date with " + self.name + ' rejected, try with another one';
+				do remove_belief(date_list_pr);
+				do remove_intention(split_bill_date_pr, true); 
+			}
+		}
 	}
 	
 	plan pay_whole_bill_date intention: pay_whole_bill_date_pr {
-		
+		list<Person> all_chat_targets <- get_beliefs_with_name(sugar_list_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		write self.name + ': current intention cause : ' + get_predicate(get_current_intention());
+//		list<Person> already_met <- get_beliefs_with_name(same_profession_people_met_pr_name) collect (get_predicate(mental_state (each)).values["self_value"]);
+//		list<Person> new_chat_targets <- all_chat_targets - already_met;
+		Person target_chat <- all_chat_targets[0];
+		// remove the target belief 
+		ask target_chat {
+			//	Myself: I
+			//	Self: target
+			if (self.extroversion=1.0) {
+				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
+				ask myself {
+					do remove_belief(sugar_list_pr);
+					do remove_intention(pay_whole_bill_date_pr, true);
+					do remove_intention(socialize_pr, true);
+				}
+				do remove_belief(sugar_list_pr);
+				do remove_intention(pay_whole_bill_date_pr, true); 
+				do remove_intention(socialize_pr, true);
+			}
+			else {
+				write myself.name + ': ' + " split-bill date with " + self.name + ' rejected, try with another one';
+				do remove_belief(sugar_list_pr);
+				do remove_intention(pay_whole_bill_date_pr, true); 
+			}
+		}
 	}
 	
 	plan share_information_to_friends intention: share_information_pr instantaneous: true {
