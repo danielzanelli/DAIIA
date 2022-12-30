@@ -20,7 +20,7 @@ global {
 	int food_alarm <- 31;
 	
 	int socialize_wait <- 20;
-	float liking_share_threshold <- 0.0;
+	float liking_share_threshold <- 0.5;
 	
 	
 	float openness_chance <- 0.5; 				// open-minded
@@ -213,7 +213,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	perceive target: Stage in: view_dist {
 		//	Myself: Person
 		//	Self: Stage
-		if (self.has_music and myself.has_belief_with_name('music_need')) { 
+		if (self.has_music ) { 
 			// adding for each detected concert a belief corresponding to the
 			// location of this concert. The name of the belief will be
 			// concert_at_location and the location value of the concert will
@@ -253,7 +253,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(wander_music_pr, true);
 			}
 		}
-		if (self.has_drink and myself.has_belief_with_name('drink_need')) {
+		if (self.has_drink ) {
 			
 			bool is_present <- false;
 			loop belief over: myself.get_beliefs_with_name(drink_location_pr_name){
@@ -279,7 +279,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(wander_drink_pr, true);
 			}
 		}
-		if (self.has_food and myself.has_belief_with_name('food_need')) {
+		if (self.has_food) {
 			bool is_present <- false;
 			loop belief over: myself.get_beliefs_with_name(food_location_pr_name){
 				if(get_predicate(belief).values["location_value"] = location){
@@ -415,10 +415,11 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		//	Self: other
 		if (myself.is_current_intention(socialize_pr) and self.is_current_intention(socialize_pr)) {
 			// if mypersonality is this formula, else another formula
-			float sim_distance <- (point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism));
+			float sim_distance <- ( abs(myself.openness - self.openness) + abs(myself.extroversion - self.extroversion) + abs(myself.agreeableness - self.agreeableness) +  abs(myself.neurotism - self.neurotism) + abs(myself.conscientiousness - self.conscientiousness))/5;
+//			float sim_distance <- (point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism));
 //			write myself.name + ': sim_distance with ' + self.name + ' is ' + sim_distance;
 			socialize liking: 1.0 -  sim_distance;
-			liking[myself.name] <- ((myself.social_link_base where (each.agent = self)) collect each.liking)[0];
+			liking[myself.name] <- ((myself.social_link_base where (each.agent = self)) collect each.liking);
 			
 			// job
 			if (self.profession = myself.profession) {
@@ -753,7 +754,7 @@ experiment gui_experiment type: gui {
 	parameter "drink_alarm" var:drink_alarm;
 	parameter "food_alarm" var:food_alarm;
 	parameter "socialize_wait" var:socialize_wait;
-	parameter "liking_share_threshold" var:liking_share_threshold min:-1.0 max:1.0 ;
+	parameter "liking_share_threshold" var:liking_share_threshold min:0.0 max:1.0 ;
 	
 	
 	parameter "openness_chance" category: "Agents" var:openness_chance  min:0.0 max:1.0;
