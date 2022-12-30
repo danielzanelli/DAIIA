@@ -25,7 +25,7 @@ global {
 	
 	
 	
-	int nb_stages <- 5;
+	int nb_stages <- 10;
 	int nb_ppl <- 50;
 	
 	float view_dist<-1000.0;
@@ -36,7 +36,7 @@ global {
 	int drink_alarm <- 23;
 	int food_alarm <- 31;
 	
-	int socialize_wait <- 20;
+	int socialize_wait <- 10;
 	float liking_share_threshold <- 0.5;
 	
 	
@@ -113,18 +113,18 @@ global {
 	}
 	
 	reflex display_social_links{
-		loop tempMiner over: Person{
-				loop tempDestination over: tempMiner.social_link_base{
+		loop tempPerson over: Person{
+				loop tempDestination over: tempPerson.social_link_base{
 					if (tempDestination !=nil){
 						bool exists<-false;
 						loop tempLink over: socialLinkRepresentation{
-							if((tempLink.origin=tempMiner) and (tempLink.destination=tempDestination.agent)){
+							if((tempLink.origin=tempPerson) and (tempLink.destination=tempDestination.agent)){
 								exists<-true;
 							}
 						}
 						if(not exists){
 							create socialLinkRepresentation number: 1{
-								origin <- tempMiner;
+								origin <- tempPerson;
 								destination <- tempDestination.agent;
 								if(get_liking(tempDestination) >= liking_share_threshold){
 									my_color <- #green;
@@ -636,6 +636,10 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 //				write "after: " + self.total_liking;
 //				myself.total_liking <- sum(myself.liking_map collect each);
+				ask myself {
+					do remove_belief(same_profession_people_pr);
+					do remove_intention(fan_chat_pr, true);
+				}
 				do remove_belief(same_profession_people_pr);
 				do remove_intention(fan_chat_pr, true);
 			}
@@ -675,8 +679,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 //				write "after: " + self.total_liking;
 //				myself.total_liking <- sum(myself.liking_map collect each);
+				ask myself {
+					do remove_belief(same_profession_people_pr);
+					do remove_intention(dance_together_pr, true);
+				}
 				do remove_belief(same_profession_people_pr);
-				do remove_intention(dance_together_pr, true); 
+				do remove_intention(dance_together_pr, true);
 			}
 		}
 	}
@@ -714,8 +722,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 //				write "after: " + self.total_liking;
 //				myself.total_liking <- sum(myself.liking_map collect each);
+				ask myself {
+					do remove_belief(same_profession_people_pr);
+					do remove_intention(sing_together_pr, true);
+				}
 				do remove_belief(same_profession_people_pr);
-				do remove_intention(sing_together_pr, true); 
+				do remove_intention(sing_together_pr, true);
 			}
 		}
 	}
@@ -753,8 +765,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 //				write "after: " + self.total_liking;
 //				myself.total_liking <- sum(myself.liking_map collect each);
+				ask myself {
+					do remove_belief(date_list_pr);
+					do remove_intention(split_bill_date_pr, true);
+				}
 				do remove_belief(date_list_pr);
-				do remove_intention(split_bill_date_pr, true); 
+				do remove_intention(split_bill_date_pr, true);
 			}
 		}
 	}
@@ -792,8 +808,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 //				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 //				write "after: " + self.total_liking;
 //				myself.total_liking <- sum(myself.liking_map collect each);
+				ask myself {
+					do remove_belief(sugar_list_pr);
+					do remove_intention(pay_whole_bill_date_pr, true);
+				}
 				do remove_belief(sugar_list_pr);
-				do remove_intention(pay_whole_bill_date_pr, true); 
+				do remove_intention(pay_whole_bill_date_pr, true);
 			}
 		}
 	}
