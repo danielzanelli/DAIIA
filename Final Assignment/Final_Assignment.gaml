@@ -434,15 +434,27 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		//	Self: other
 		if (myself.is_current_intention(socialize_pr) and self.is_current_intention(socialize_pr)) {
 			// if mypersonality is this formula, else another formula
-			float sim_distance <- ( abs(myself.openness - self.openness) + abs(myself.extroversion - self.extroversion) + abs(myself.agreeableness - self.agreeableness) +  abs(myself.neurotism - self.neurotism) + abs(myself.conscientiousness - self.conscientiousness))/5;
-//			float sim_distance <- (point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism));
-			write myself.name + ': sim_distance with ' + self.name + ' is ' + sim_distance;
+
 			
-			socialize liking: 1.0 -  sim_distance;
-			
-			myself.liking_map[self.name] <- 1.0 - sim_distance;
-			
-			myself.total_liking <- sum(myself.liking_map collect each);
+			if!(self.name in myself.liking_map.keys){
+				float sim_distance <- ( abs(myself.openness - self.openness) + abs(myself.extroversion - self.extroversion) + abs(myself.agreeableness - self.agreeableness) +  abs(myself.neurotism - self.neurotism) + abs(myself.conscientiousness - self.conscientiousness))/5;
+//				socialize liking: 1.0 -  sim_distance;
+				myself.liking_map[self.name] <- 1.0 - sim_distance;
+				write myself.name + ': initial liking with ' + self.name + ' is ' +  (1.0 - sim_distance);
+				write myself.liking_map;
+				
+			}
+			self.total_liking <- sum(Person collect each.liking_map[self.name]);
+			myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+			write "extrovert: " + myself.extroversion + "my total liking: " + myself.total_liking;
+			write "my map: " + myself.liking_map;
+			write "extrovert: " + self.extroversion + "other total liking: " + self.total_liking;
+			write "other map: " + self.liking_map;
+//			write "" + myself + ": " + (Person collect each.liking_map);
+//			write "" + myself + ": " + (Person collect each.liking_map[myself.name]);
+//			write "" + myself + ": " + sum(Person collect each.liking_map[myself.name]);
+//			myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//			myself.total_liking <- sum(myself.liking_map collect each);
 			
 			
 			// job
@@ -470,7 +482,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 					//	Myself: other
 					//	Self: I
 
-					if (self.extroversion=1.0) {
+					if (self.extroversion=1.0 and self.liking_map[myself.name] >= liking_share_threshold ) {
 						if (self.profession='fan'){
 							write self.name + ': ' + " going to ask for a fan chat with " + myself.name;
 							do add_subintention(get_current_intention(),new_predicate("fan_chat", myself), true);
@@ -601,8 +613,13 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: target
 			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " fan chat request with " + self.name + ' accepted and finished';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
-				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
+//				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+				
+//				myself.total_liking <- sum(myself.liking_map collect each);
+//				myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+				
 				ask myself {
 					do remove_belief(same_profession_people_pr);
 					do remove_intention(fan_chat_pr, true);
@@ -613,8 +630,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(socialize_pr, true);
 			}
 			else {
-				write myself.name + ': ' + " fan chat request with " + self.name + ' rejected, try with another one';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.9;
+				write myself.name + ': ' + " fan chat request has been rejected by " + self.name;
+//				write "before: " + self.total_liking;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.5;
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+//				write "after: " + self.total_liking;
+//				myself.total_liking <- sum(myself.liking_map collect each);
 				do remove_belief(same_profession_people_pr);
 				do remove_intention(fan_chat_pr, true);
 			}
@@ -633,8 +654,11 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: target
 			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " dance request with " + self.name + ' accepted and finished';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
-				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
+//				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.total_liking <- sum(myself.liking_map collect each);
+//				myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 				ask myself {
 					do remove_belief(same_profession_people_pr);
 					do remove_intention(dance_together_pr, true);
@@ -645,8 +669,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(socialize_pr, true);
 			}
 			else {
-				write myself.name + ': ' + " dance request with " + self.name + ' rejected, try with another one';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.9;
+				write myself.name + ': ' + " dance request has been rejected by " + self.name;
+//				write "before: " + self.total_liking;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.5;
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+//				write "after: " + self.total_liking;
+//				myself.total_liking <- sum(myself.liking_map collect each);
 				do remove_belief(same_profession_people_pr);
 				do remove_intention(dance_together_pr, true); 
 			}
@@ -665,8 +693,11 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: target
 			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " sing request with " + self.name + ' accepted and finished';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
-				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
+//				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.total_liking <- sum(myself.liking_map collect each);
+//				myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 				ask myself {
 					do remove_belief(same_profession_people_pr);
 					do remove_intention(sing_together_pr, true);
@@ -677,8 +708,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(socialize_pr, true);
 			}
 			else {
-				write myself.name + ': ' + " sing request with " + self.name + ' rejected, try with another one';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.9;
+				write myself.name + ': ' + " sing request has been rejected by " + self.name;
+//				write "before: " + self.total_liking;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.5;
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+//				write "after: " + self.total_liking;
+//				myself.total_liking <- sum(myself.liking_map collect each);
 				do remove_belief(same_profession_people_pr);
 				do remove_intention(sing_together_pr, true); 
 			}
@@ -697,8 +732,11 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: target
 			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
-				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
+//				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.total_liking <- sum(myself.liking_map collect each);
+//				myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 				ask myself {
 					do remove_belief(date_list_pr);
 					do remove_intention(split_bill_date_pr, true);
@@ -709,8 +747,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(socialize_pr, true);
 			}
 			else {
-				write myself.name + ': ' + " split-bill date with " + self.name + ' rejected, try with another one';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.9;
+				write myself.name + ': ' + " split-bill date request has been rejected by " + self.name;
+//				write "before: " + self.total_liking;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.5;
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+//				write "after: " + self.total_liking;
+//				myself.total_liking <- sum(myself.liking_map collect each);
 				do remove_belief(date_list_pr);
 				do remove_intention(split_bill_date_pr, true); 
 			}
@@ -729,8 +771,11 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	Self: target
 			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
-				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 1.1;
+//				self.liking_map[myself.name] <- self.liking_map[myself.name] * 1.1;
+//				myself.total_liking <- sum(myself.liking_map collect each);
+//				myself.total_liking <- sum(Person collect each.liking_map[myself.name]);
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
 				ask myself {
 					do remove_belief(sugar_list_pr);
 					do remove_intention(pay_whole_bill_date_pr, true);
@@ -741,8 +786,12 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(socialize_pr, true);
 			}
 			else {
-				write myself.name + ': ' + " split-bill date with " + self.name + ' rejected, try with another one';
-				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.9;
+				write myself.name + ': ' + " pay-whole-bill date request has been rejected by " + self.name;
+//				write "before: " + self.total_liking;
+//				myself.liking_map[self.name] <- myself.liking_map[self.name] * 0.5;	
+//				self.total_liking <- sum(Person collect each.liking_map[self.name]);
+//				write "after: " + self.total_liking;
+//				myself.total_liking <- sum(myself.liking_map collect each);
 				do remove_belief(sugar_list_pr);
 				do remove_intention(pay_whole_bill_date_pr, true); 
 			}
@@ -814,11 +863,11 @@ experiment gui_experiment type: gui {
     	}    
     	
 		display chart {
-			chart "Money" type: series {
+			chart "Likeness" type: series {
 //				datalist legend: Person accumulate each.name value: Person accumulate each.total_liking color: Person accumulate each.my_color;
-				data legend: "liking" value: sum(Person accumulate each.total_liking) color: #black;
-				data legend: "extrovert liking" value: sum(Person where (each.extroversion = 1.0) accumulate each.total_liking) color: #red;
-				data legend: "introvert liking" value: sum(Person where (each.extroversion = 0.0) accumulate each.total_liking) color: #blue;
+				data legend: "liking" value: sum(Person collect each.total_liking) color: #black;
+				data legend: "extrovert liking" value: sum(Person where (each.extroversion = 1.0) collect each.total_liking) color: #red;
+				data legend: "introvert liking" value: sum(Person where (each.extroversion = 0.0) collect each.total_liking) color: #blue;
 			}
 		}	
 		
