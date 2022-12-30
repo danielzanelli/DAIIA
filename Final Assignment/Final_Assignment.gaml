@@ -22,17 +22,19 @@ global {
 	int socialize_wait <- 20;
 	float liking_share_threshold <- 0.0;
 	
-//	market the_market;
+	
+	float openness_chance <- 0.5; 				// open-minded
+	float conscientiousness_chance <- 0.5; 		// act with preprations
+	float extroversion_chance <- 0.5; 			// extrovert
+	float agreeableness_chance <- 0.5; 			// friendly
+	float neurotism_chance <- 0.5;				// not-calm
+	
+	
 	
 	string music_location_pr_name <- "music_at_location";
 	string drink_location_pr_name <- "drink_at_location";
 	string food_location_pr_name <- "food_at_location";
 	
-//	string lookingForStageString <- "Looking for an interesting stage";
-//	predicate lookingForStage <- new_predicate(lookingForStageString);
-//    
-//	string foundStageWithMusicString <- "Found a stage with music";
-//	predicate foundStageWithMusic <- new_predicate(foundStageWithMusicString);
 //	
 	float step <- 10#mn;
 	
@@ -82,7 +84,6 @@ global {
 	emotion joy_drink <- new_emotion("joy", satisfy_drink_pr);
 	emotion joy_food <- new_emotion("joy", satisfy_food_pr);
 	
-//	float inequality <- 0.0 update:standard_deviation(Person collect each.gold_sold);
 	
 	geometry shape <- square(20 #km);
 	init
@@ -108,7 +109,7 @@ global {
 							create socialLinkRepresentation number: 1{
 								origin <- tempMiner;
 								destination <- tempDestination.agent;
-								if(get_liking(tempDestination)>0){
+								if(get_liking(tempDestination) >= liking_share_threshold){
 									my_color <- #green;
 								} else {
 									my_color <- #red;
@@ -120,12 +121,6 @@ global {
 			}
 	}
 	
-//	reflex end_simulation when: sum(Stage collect each.remaining_capacity) = 0 and empty(Person where each.has_belief(satisfy_music_pr)){
-//		do pause;
-//		ask Person {
-//			write name + " : " +gold_sold;
-//		}
-//	}
 }
 
 species Stage {
@@ -150,13 +145,6 @@ species Stage {
     }
 }
 
-//species market {
-//	int golds;
-//	aspect default {
-//		draw square(1000) color: #black ;
-//	}
-//}
-
 species Person skills: [moving, fipa] control:simple_bdi {
 	
 	rgb my_color<-rnd_color(255);
@@ -168,24 +156,23 @@ species Person skills: [moving, fipa] control:simple_bdi {
     string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
     
     bool is_young <- flip(0.5);
-    bool is_female <- flip(0.0);
+    bool is_female <- flip(0.5);
     
     
     bool use_personality <- true;
-	float openness <- float(rnd(1)); // open-minded
-	float conscientiousness <- 0.5; //  act with preprations
-	float extroversion <- float(rnd(1)); // extrovert
-	float agreeableness <- float(rnd(1)); // friendly
-	float neurotism <- float(rnd(1)); // calm
+    bool use_social_architecture <- true;
+	bool use_emotions_architecture <- true;
+    
+	float openness <- float(flip(openness_chance)); 					// open-minded
+	float conscientiousness <- float(flip(conscientiousness_chance)); 	// act with preprations
+	float extroversion <- float(flip(extroversion_chance)); 			// extrovert
+	float agreeableness <- float(flip(agreeableness_chance)); 			// friendly
+	float neurotism <- float(flip(neurotism_chance)); 					// not-calm
 	
     map<string,float> liking <- [];
-//    bool is_generous <- flip(0.5);
-//    bool is_humble <- flip(0.5);
 	
 	point target_stage_loc;
 	
-    bool use_social_architecture <- true;
-	bool use_emotions_architecture <- true;
 	
 	init {
 		do add_desire(no_need_wander_pr);
@@ -226,7 +213,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	perceive target: Stage in: view_dist {
 		//	Myself: Person
 		//	Self: Stage
-		if (self.has_music) { // and myself.has_belief_with_name('music_need')
+		if (self.has_music and myself.has_belief_with_name('music_need')) { 
 			// adding for each detected concert a belief corresponding to the
 			// location of this concert. The name of the belief will be
 			// concert_at_location and the location value of the concert will
@@ -237,8 +224,19 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			//	ask myself {
 			//		do add_belief(new_predicate("stage_location_pr_name",["location_value"::myself.location]);
 			//	}
-			focus id: music_location_pr_name var: location;
-			write myself.name + ': added ' + self.name + ' location to my music belief';
+			
+			bool is_present <- false;
+			loop belief over: myself.get_beliefs_with_name(music_location_pr_name){
+				if(get_predicate(belief).values["location_value"] = location){
+					is_present <- true;
+					break;
+				}
+			}
+			
+			if(!is_present){
+				focus id: music_location_pr_name var: location;				
+				write myself.name + ': added ' + self.name + ' location to my music belief';				
+			}
 			
 			//	the instructions written in the statement are executed in the
 			//	context of the perceived agents. It is for that, that we have to
@@ -256,8 +254,19 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			}
 		}
 		if (self.has_drink and myself.has_belief_with_name('drink_need')) {
-			focus id: drink_location_pr_name var: location;
-			write myself.name + ': ' + " added " + self.name + ' location to my drink belief';
+			
+			bool is_present <- false;
+			loop belief over: myself.get_beliefs_with_name(drink_location_pr_name){
+				if(get_predicate(belief).values["location_value"] = location){
+					is_present <- true;
+					break;
+				}
+			}
+			
+			if(!is_present){
+				focus id: drink_location_pr_name var: location;
+				write myself.name + ': ' + " added " + self.name + ' location to my drink belief';
+			}
 			
 			ask myself {
 	//			check if the emotion is in the belief base.
@@ -270,10 +279,18 @@ species Person skills: [moving, fipa] control:simple_bdi {
 				do remove_intention(wander_drink_pr, true);
 			}
 		}
-		if (self.has_food) {
-			focus id: food_location_pr_name var: location;
-			write myself.name + ': ' + " added " + self.name + ' location to my food belief';
-			
+		if (self.has_food and myself.has_belief_with_name('food_need')) {
+			bool is_present <- false;
+			loop belief over: myself.get_beliefs_with_name(food_location_pr_name){
+				if(get_predicate(belief).values["location_value"] = location){
+					is_present <- true;
+					break;
+				}
+			}			
+			if(!is_present){
+				focus id: food_location_pr_name var: location;
+				write myself.name + ': ' + " added " + self.name + ' location to my food belief';
+			}
 			ask myself {
 	//			check if the emotion is in the belief base.
 	//			Myself: Stage
@@ -288,8 +305,6 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	}
 
 		
-	// if the agent believes that there is somewhere at least one
-	// concert_location, the agent gets the new desire to has a gold nugget with a strength of 2. 
 	rule belief: music_need_pr new_desire: satisfy_music_pr strength: 2.0;
 	rule belief: drink_need_pr new_desire: satisfy_drink_pr strength: 4.0;
 	rule belief: food_need_pr new_desire: satisfy_food_pr strength: 3.0;
@@ -394,17 +409,6 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	rule belief: satisfy_drink_pr new_desire: socialize_pr strength: 5 lifetime: socialize_wait;
 	rule belief: satisfy_food_pr new_desire: socialize_pr strength: 5 lifetime: socialize_wait;
 
-//	string profession <- sample(['singer', 'dancer', 'fan'],1,false)[0];
-//
-//	bool is_young <- flip(0.5);
-//	bool is_female <- flip(0.5);
-//
-//	bool use_personality <- true;
-//	float openness <- float(rnd(1)); // open-minded
-//	float conscientiousness <- 0.5; //  act with preprations
-//	float extroversion <- float(rnd(1)); // extrovert
-//	float agreeableness <- float(rnd(1)); // friendly
-//	float neurotism <- float(rnd(1)); // calm
 
 	perceive target:Person in:view_dist {
 		//	Myself: I
@@ -412,20 +416,30 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		if (myself.is_current_intention(socialize_pr) and self.is_current_intention(socialize_pr)) {
 			// if mypersonality is this formula, else another formula
 			float sim_distance <- (point(self.openness, self.extroversion, self.agreeableness, self.neurotism) distance_to point(myself.openness, myself.extroversion, myself.agreeableness, myself.neurotism));
-			write myself.name + ': sim_distance with ' + self.name + ' is ' + sim_distance;
+//			write myself.name + ': sim_distance with ' + self.name + ' is ' + sim_distance;
 			socialize liking: 1.0 -  sim_distance;
 			liking[myself.name] <- ((myself.social_link_base where (each.agent = self)) collect each.liking)[0];
 			
 			// job
 			if (self.profession = myself.profession) {
-				//is equivalent to:
-				ask myself {
-					//	Myself: other
-					//	Self: I
-					do add_belief(new_predicate(same_profession_people_pr_name,["self_value"::myself]));
+				
+				bool is_present <- false;
+				loop belief over: myself.get_beliefs_with_name(same_profession_people_pr_name){
+					if(get_predicate(belief).values["self_value"] = self){
+						is_present <- true;
+						break;
+					}
+				}			
+				if(!is_present){
+					ask myself {
+						//	Myself: other
+						//	Self: I
+						do add_belief(new_predicate(same_profession_people_pr_name,["self_value"::myself]));
+						write myself.name + ': added ' + self.name + ' name to my same profession belief';
+					}
 				}
-//				focus id: same_profession_people_pr_name var: name;
-				write myself.name + ': added ' + self.name + ' name to my same profession belief';
+			
+
 				
 				ask myself {
 					//	Myself: other
@@ -457,21 +471,30 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			
 			// date list
 			if (myself.is_young = self.is_young and myself.is_female != self.is_female){
-				ask myself {
-					//	Myself: other
-					//	Self: I
-					do add_belief(new_predicate(date_list_pr_name,["self_value"::myself]));
-				}
-//				focus id: date_list_pr_name var: name;
 				
-				write myself.name + ': ' + " added " + self.name + ' name to my date list belief';
+				
+				bool is_present <- false;
+				loop belief over: myself.get_beliefs_with_name(date_list_pr_name){
+					if(get_predicate(belief).values["self_value"] = self){
+						is_present <- true;
+						break;
+					}
+				}			
+				if(!is_present){
+					ask myself {
+						//	Myself: other
+						//	Self: I
+						do add_belief(new_predicate(date_list_pr_name,["self_value"::myself]));
+						write myself.name + ': ' + " added " + self.name + ' name to my date list belief';
+					}
+				}				
 				
 				ask myself {
 					//	Myself: other
 					//	Self: I
 
 					if (self.extroversion=1.0) {
-						if (self.liking[myself.name] > 0.5 ){
+						if (self.liking[myself.name] >= liking_share_threshold ){
 							write self.name + ': ' + "intention to ask for a split-bill date with " + myself.name;
 							do add_subintention(get_current_intention(), split_bill_date_pr, true);
 							do current_intention_on_hold();
@@ -482,22 +505,30 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			}
 			
 			// sugar date list !!
-			if (myself.is_young != self.is_young and myself.is_female != self.is_female){
-				ask myself {
-					//	Myself: other
-					//	Self: I
-					do add_belief(new_predicate(sugar_list_pr_name,["self_value"::myself]));
-				}
-//				focus id: sugar_list_pr_name var: name;
+			if (myself.is_young != self.is_young and myself.is_female != self.is_female){				
 				
-				write myself.name + ': ' + " added " + self.name + ' name to my sugar list belief';
+				bool is_present <- false;
+				loop belief over: myself.get_beliefs_with_name(sugar_list_pr_name){
+					if(get_predicate(belief).values["self_value"] = self){
+						is_present <- true;
+						break;
+					}
+				}			
+				if(!is_present){
+					ask myself {
+						//	Myself: other
+						//	Self: I
+						do add_belief(new_predicate(sugar_list_pr_name,["self_value"::myself]));
+						write myself.name + ': ' + " added " + self.name + ' name to my sugar list belief';
+					}
+				}				
 				
 				ask myself {
 					//	Myself: other
 					//	Self: I
 
 					if (self.extroversion=1.0) {
-						if (self.liking[myself.name] > 0.5 ){
+						if (self.liking[myself.name] >= liking_share_threshold ){
 							write self.name + ': ' + "intention to ask for a pay-whole-bill date with " + myself.name;
 							do add_subintention(get_current_intention(), pay_whole_bill_date_pr, true);
 							do current_intention_on_hold();
@@ -530,15 +561,6 @@ species Person skills: [moving, fipa] control:simple_bdi {
 			do remove_belief(satisfy_music_pr);
 			need_music <- 0;
 		}
-
-// wait 10 sec, then flip your needs again
-		
-//		do goto target: the_market ;
-//		if (the_market.location = location)  {
-//			do remove_belief(satisfy_music_pr);
-//			do remove_intention(sell_gold_pr, true);
-//			gold_sold <- gold_sold + 1;
-//		}
 	}
 	
 	
@@ -552,7 +574,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		ask target_chat {
 			//	Myself: I
 			//	Self: target
-			if (self.extroversion=1.0) {
+			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " fan chat request with " + self.name + ' accepted and finished';
 				ask myself {
 					do remove_belief(same_profession_people_pr);
@@ -581,7 +603,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		ask target_chat {
 			//	Myself: I
 			//	Self: target
-			if (self.extroversion=1.0) {
+			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " dance request with " + self.name + ' accepted and finished';
 				ask myself {
 					do remove_belief(same_profession_people_pr);
@@ -610,7 +632,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		ask target_chat {
 			//	Myself: I
 			//	Self: target
-			if (self.extroversion=1.0) {
+			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " sing request with " + self.name + ' accepted and finished';
 				ask myself {
 					do remove_belief(same_profession_people_pr);
@@ -639,7 +661,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		ask target_chat {
 			//	Myself: I
 			//	Self: target
-			if (self.extroversion=1.0) {
+			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
 				ask myself {
 					do remove_belief(date_list_pr);
@@ -668,7 +690,7 @@ species Person skills: [moving, fipa] control:simple_bdi {
 		ask target_chat {
 			//	Myself: I
 			//	Self: target
-			if (self.extroversion=1.0) {
+			if (self.extroversion = 1.0 or self.openness = 1.0 or self.agreeableness = 1.0) {
 				write myself.name + ': ' + " split-bill date with " + self.name + ' accepted and finished';
 				ask myself {
 					do remove_belief(sugar_list_pr);
@@ -690,12 +712,9 @@ species Person skills: [moving, fipa] control:simple_bdi {
 	plan share_information_to_friends intention: share_information_pr instantaneous: true {
 		list<Person> my_friends <- list<Person>((social_link_base where (each.liking > liking_share_threshold)) collect each.agent);
 		if (!empty(my_friends)) {
-			loop known_gold_mine over: get_beliefs_with_name(music_location_pr_name) {
-				write self.name + ': sharing this (' + known_gold_mine + ') with my friends ';
-					do start_conversation to:my_friends performative:'inform' contents:known_gold_mine;
-	//			ask my_friends {
-	//				do add_directly_belief(known_gold_mine);
-	//			}
+			loop belief over: get_beliefs_with_name(music_location_pr_name) {
+				write self.name + ': sharing this (' + belief + ') with my friends ';
+					do start_conversation to:my_friends performative:'inform' contents:belief;
 			}
 		}
 		do remove_intention(share_information_pr, true); 
@@ -735,6 +754,13 @@ experiment gui_experiment type: gui {
 	parameter "food_alarm" var:food_alarm;
 	parameter "socialize_wait" var:socialize_wait;
 	parameter "liking_share_threshold" var:liking_share_threshold min:-1.0 max:1.0 ;
+	
+	
+	parameter "openness_chance" category: "Agents" var:openness_chance  min:0.0 max:1.0;
+	parameter "conscientiousness_chance" category: "Agents" var:conscientiousness_chance  min:0.0 max:1.0;
+	parameter "extroversion_chance" category: "Agents" var:extroversion_chance  min:0.0 max:1.0;
+	parameter "agreeableness_chance" category: "Agents" var:agreeableness_chance  min:0.0 max:1.0;
+	parameter "neurotism_chance" category: "Agents" var:neurotism_chance  min:0.0 max:1.0;
 
 	output {
 		display map type: opengl {
@@ -745,13 +771,6 @@ experiment gui_experiment type: gui {
 		
 		display socialLinks type: opengl {
         	species socialLinkRepresentation aspect: base;
-    	}
-
-//		display chart {
-//			chart "Money" type: series {
-//				datalist legend: Person accumulate each.name value: Person accumulate each.gold_sold color: Person accumulate each.my_color;
-//			}
-//		}
-		
+    	}		
 	}
 }
