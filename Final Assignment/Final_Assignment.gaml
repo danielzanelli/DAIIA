@@ -8,8 +8,8 @@
 model FinalAssignment
 
 global {
-	int nb_stages <- 6;
-	int nb_ppl <- 12;
+	int nb_stages <- 5;
+	int nb_ppl <- 50;
 	
 	float view_dist<-1000.0;
 	float speed <- 2#km/#h;
